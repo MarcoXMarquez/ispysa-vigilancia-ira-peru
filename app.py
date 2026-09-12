@@ -130,32 +130,30 @@ st.markdown(
         font-weight: 400;
     }
 
-    /* Cintillo Informativo Monospaciado (Magic UI Marquee) */
-    .bulletin-ticker-wrapper {
-        overflow: hidden;
-        white-space: nowrap;
-        background-color: #0f172a;
-        border: 1px solid #1e293b;
+    /* Panel Informativo de Situación Epidemiológica (Diseño Institucional SGC) */
+    .executive-summary-panel {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+        background-color: #f8fafc;
+        border: 1px solid #cbd5e1;
+        border-left: 4px solid var(--blue-primary);
         border-radius: var(--radius-sm);
-        padding: 6px 0;
+        padding: 10px 14px;
         margin-bottom: 18px;
     }
-    .bulletin-ticker-content {
-        display: inline-block;
-        padding-left: 100%;
-        animation: bulletin-scroll 45s linear infinite;
-        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-        font-size: 0.8rem;
-        font-weight: 500;
-        color: #cbd5e1;
-        letter-spacing: 0.02em;
+    .summary-item {
+        font-size: 0.82rem;
+        line-height: 1.4;
+        color: #334155;
     }
-    .bulletin-ticker-content:hover {
-        animation-play-state: paused;
-    }
-    @keyframes bulletin-scroll {
-        0% { transform: translate(0, 0); }
-        100% { transform: translate(-100%, 0); }
+    .summary-item-title {
+        font-weight: 700;
+        color: #0f172a;
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin-bottom: 2px;
     }
 
     /* Tarjetas de Indicadores Clave (KPIs) - shadcn / Design Tokens */
@@ -376,22 +374,22 @@ st.markdown(
 )
 
 # ==============================================================================
-# 2. CINTILLO OFICIAL DE BOLETÍN EPIDEMIOLÓGICO (MAGIC UI MARQUEE FORMAL)
+# 2. PANEL DE SÍNTESIS EPIDEMIOLÓGICA (GOBERNANZA CLÍNICA Y CONTROL SGC)
 # ==============================================================================
-bulletin_items = (
-    "BOLETÍN EPIDEMIOLÓGICO CONSOLIDADO | "
-    "REGIONES DE ALTO IMPACTO EN POBLACIÓN PEDIÁTRICA: UCAYALI Y LORETO REGISTRAN >91.7% DE PERMANENCIA EN CATEGORÍA 1 | "
-    "REGIONES DE ALTO IMPACTO EN ADULTOS MAYORES: AREQUIPA (88.9%) Y CUSCO (61.1%) CONCENTRAN MAYOR VULNERABILIDAD ANDINA | "
-    "MODELADO PREDICTIVO: ALGORITMO XGBOOST ALCANZA COEFICIENTE DE DETERMINACIÓN R² = 0.935 EN PROYECCIÓN DE 52 SEMANAS | "
-    "NORMALIZACIÓN CENSAL: CÁLCULOS ESTANDARIZADOS POR 100,000 HABITANTES MEDIANTE POBLACIÓN INTERPOLADA 2000-2023 | "
-    "INDICADORES DE SEVERIDAD: MONITOREO CONTINUO DE HOSPITALIZACIÓN (HR) Y LETALIDAD (CFR)"
-)
-
 st.markdown(
-    f"""
-    <div class="bulletin-ticker-wrapper">
-        <div class="bulletin-ticker-content">
-            {bulletin_items}
+    """
+    <div class="executive-summary-panel">
+        <div class="summary-item">
+            <div class="summary-item-title">Vigilancia Pediátrica (&lt;5 años)</div>
+            Persistencia crítica en cuenca amazónica: <strong>Ucayali</strong> y <strong>Loreto</strong> registran &gt;91.7% de años en Categoría 1 de incidencia.
+        </div>
+        <div class="summary-item">
+            <div class="summary-item-title">Vigilancia Geriátrica (60+ años)</div>
+            Vulnerabilidad andina concentrada: <strong>Arequipa</strong> (88.9%) y <strong>Cusco</strong> (61.1%) presentan mayor demanda por heladas y bajas temperaturas.
+        </div>
+        <div class="summary-item">
+            <div class="summary-item-title">Capacidad Predictiva (ML)</div>
+            Modelo <strong>XGBoost</strong> validado con backtesting rodante: <strong>R² = 0.935</strong> en niños y <strong>0.890</strong> en adultos a horizonte de 52 semanas.
         </div>
     </div>
     """,
@@ -895,19 +893,18 @@ with tab_quality:
     st.table(pd.DataFrame(iso_full_data))
 
 # ==============================================================================
-# 6. PANEL INFERIOR: ESPECIFICACIONES METODOLÓGICAS (VAUL DRAWER STYLE)
+# 6. PANEL INFERIOR: ESPECIFICACIONES METODOLÓGICAS Y GLOSARIO OFICIAL
 # ==============================================================================
 st.markdown(
     """
     <div class="methodology-panel">
-        <div style="width: 40px; height: 4px; background-color: #cbd5e1; border-radius: 9999px; margin: 0 auto 12px auto;"></div>
-        <div style="font-size: 0.92rem; font-weight: 700; color: var(--text-headline); margin-bottom: 6px; text-transform: uppercase;">
-            Especificaciones Metodológicas y Glosario Epidemiológico
+        <div style="font-size: 0.88rem; font-weight: 700; color: var(--navy-primary); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--border-subtle); padding-bottom: 6px;">
+            Ficha Técnica Epidemiológica y Metodología Normada (MINSA / OMS)
         </div>
-        <div style="font-size: 0.85rem; color: var(--text-body); line-height: 1.55;">
-            • <strong>Tasa de Incidencia Estandarizada:</strong> <code>(Casos / Población) × 100,000 hab.</code> (Ajustada por interpolación poblacional censal anual).<br>
-            • <strong>Hospitalization Rate (HR):</strong> <code>(Hospitalizaciones / Casos) × 100</code> (Porcentaje de pacientes que requirieron internamiento hospitalario).<br>
-            • <strong>Case Fatality Ratio (CFR):</strong> <code>(Defunciones / Casos) × 100</code> (Porcentaje de defunciones sobre el total de casos confirmados).<br>
+        <div style="font-size: 0.85rem; color: var(--text-body); line-height: 1.6;">
+            • <strong>Tasa de Incidencia Estandarizada:</strong> <code>(Casos / Población) × 100,000 hab.</code> (Ajustada por interpolación exponencial censal anual 2000–2023).<br>
+            • <strong>Tasa de Hospitalización (HR):</strong> <code>(Hospitalizaciones / Casos) × 100</code> (Índice de demanda y presión hospitalaria).<br>
+            • <strong>Tasa de Letalidad (CFR):</strong> <code>(Defunciones / Casos) × 100</code> (Proporción de mortalidad en casos diagnosticados).<br>
             • <strong>Bandas de Incertidumbre Predictiva:</strong> <code>Pronóstico ± 1.96 × RMSE</code> (Intervalo de confianza empírico al 95%).
         </div>
     </div>
