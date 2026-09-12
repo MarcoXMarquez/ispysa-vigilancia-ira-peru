@@ -1,0 +1,38 @@
+name: CI Quality Gate - Pruebas y Calidad de Software
+
+on:
+  push:
+    branches: [ main, master, external ]
+  pull_request:
+    branches: [ main, master, external ]
+
+jobs:
+  test-and-quality:
+    name: Pruebas Unitarias y Auditoría de Calidad
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar Código Fuente (Checkout)
+        uses: actions/checkout@v4
+
+      - name: Configurar Entorno Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Instalar Dependencias del Sistema
+        run: |
+          python -m pip install --upgrade pip
+          pip install numpy pandas openpyxl plotly streamlit scikit-learn flake8
+
+      - name: Auditoría Estática de Código (Flake8)
+        run: |
+          # Verificar sintaxis crítica y errores fatales de compilación Python
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          # Alerta de complejidad y estilo (sin bloquear el build)
+          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=120 --statistics
+
+      - name: Ejecutar Suite de Pruebas Unitarias (ISO/IEC 25010)
+        run: |
+          python -m unittest discover -s tests -p "test_*.py" -v

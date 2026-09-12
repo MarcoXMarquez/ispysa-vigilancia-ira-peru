@@ -1,0 +1,10 @@
+region,model,mae,rmse,r2,selected_rank
+HUANUCO,random_forest,0.43,0.59,0.94,1
+HUANUCO,xgboost,0.45,0.61,0.94,2
+HUANUCO,holt_winters,0.71,0.99,0.84,3
+LORETO,random_forest,0.75,1.25,0.9,1
+LORETO,xgboost,0.78,1.29,0.89,2
+LORETO,naive,1.29,2.09,0.72,3
+UCAYALI,random_forest,0.77,1.07,0.9,1
+UCAYALI,xgboost,0.81,1.12,0.89,2
+UCAYALI,arima,1.27,1.86,0.7,3

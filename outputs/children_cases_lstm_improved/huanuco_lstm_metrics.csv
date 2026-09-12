@@ -1,0 +1,2 @@
+region,model,mae,rmse,r2
+HUANUCO,lstm,0.99,1.34,0.71

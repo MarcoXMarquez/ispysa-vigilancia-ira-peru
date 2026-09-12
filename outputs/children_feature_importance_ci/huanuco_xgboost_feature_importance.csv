@@ -1,0 +1,11 @@
+feature,importance
+lag_1,0.6009416
+lag_2,0.20052958
+roll_mean_4,0.12750964
+lag_12,0.017317662
+lag_52,0.013723539
+cos_week,0.010120213
+sin_week,0.009383341
+lag_4,0.0071918014
+roll_std_4,0.0070529697
+weekofyear,0.006229677

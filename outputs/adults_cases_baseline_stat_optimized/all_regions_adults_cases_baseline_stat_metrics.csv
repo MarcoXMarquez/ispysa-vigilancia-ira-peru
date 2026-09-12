@@ -1,0 +1,13 @@
+region,model,mae,rmse,r2
+AREQUIPA,naive,0.386,0.554,0.667
+AREQUIPA,seasonal_naive,0.834,1.248,-0.691
+AREQUIPA,holt_winters,0.394,0.562,0.657
+AREQUIPA,arima,0.36,0.516,0.711
+CUSCO,naive,0.276,0.377,0.655
+CUSCO,seasonal_naive,0.529,0.787,-0.503
+CUSCO,holt_winters,0.307,0.428,0.556
+CUSCO,arima,0.248,0.338,0.723
+MOQUEGUA,naive,0.713,1.16,0.472
+MOQUEGUA,seasonal_naive,1.238,2.016,-0.593
+MOQUEGUA,holt_winters,0.799,1.22,0.417
+MOQUEGUA,arima,0.727,1.2,0.435

@@ -1,0 +1,5 @@
+region,model,mae,rmse,r2
+AREQUIPA,naive,0.386,0.554,0.667
+AREQUIPA,seasonal_naive,0.834,1.248,-0.691
+AREQUIPA,holt_winters,0.394,0.562,0.657
+AREQUIPA,arima,0.36,0.516,0.711

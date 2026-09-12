@@ -1,0 +1,10 @@
+region,model,mae,rmse,r2,rmse_rank,mae_rank,r2_rank,overall_score
+AREQUIPA,xgboost,0.284,0.388,0.844,1.0,1.0,1.0,1.0
+AREQUIPA,random_forest,0.318,0.452,0.788,2.0,2.0,2.0,2.0
+AREQUIPA,arima,0.36,0.516,0.711,3.0,3.0,3.0,3.0
+CUSCO,xgboost,0.205,0.285,0.809,1.0,1.0,1.0,1.0
+CUSCO,random_forest,0.225,0.311,0.772,2.0,2.0,2.0,2.0
+CUSCO,arima,0.248,0.338,0.723,3.0,3.0,3.0,3.0
+MOQUEGUA,xgboost,0.572,0.952,0.657,1.0,1.0,1.0,1.0
+MOQUEGUA,random_forest,0.603,1.002,0.62,2.0,2.0,2.0,2.0
+MOQUEGUA,naive,0.713,1.16,0.472,3.0,3.0,3.0,3.0

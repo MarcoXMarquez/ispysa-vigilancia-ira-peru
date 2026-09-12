@@ -1,0 +1,2 @@
+region,model,mae,rmse,r2
+LORETO,lstm,1.76,2.78,0.5

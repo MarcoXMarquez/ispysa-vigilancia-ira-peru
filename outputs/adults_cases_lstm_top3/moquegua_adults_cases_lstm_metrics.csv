@@ -1,0 +1,2 @@
+region,model,mae,rmse,r2
+MOQUEGUA,lstm,1.07,2.66,0.05

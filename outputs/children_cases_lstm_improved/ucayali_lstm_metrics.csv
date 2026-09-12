@@ -1,0 +1,2 @@
+region,model,mae,rmse,r2
+UCAYALI,lstm,1.61,2.25,0.56

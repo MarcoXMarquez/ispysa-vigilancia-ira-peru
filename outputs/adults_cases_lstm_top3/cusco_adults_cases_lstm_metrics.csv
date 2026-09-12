@@ -1,0 +1,2 @@
+region,model,mae,rmse,r2
+CUSCO,lstm,0.39,0.6,0.23
