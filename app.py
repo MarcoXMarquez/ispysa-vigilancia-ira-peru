@@ -18,6 +18,7 @@ sys.path.insert(0, str(CURRENT_DIR))
 
 from src.services.data_service import EpidemiologyDataService
 from src.services.model_service import EpidemiologyModelService
+from src.app_indicators import previous_year_deltas, top3_for_period
 
 # ==============================================================================
 # CONFIGURACIÓN DE PÁGINA (ISO 9241-12: Densidad Visual y Ergonomía Espacial)
@@ -348,10 +349,14 @@ else:
 
 # Filtrado por rango de años
 df_filtered = df_raw[(df_raw["year"] >= year_range[0]) & (df_raw["year"] <= year_range[1])].copy()
+if df_filtered.empty:
+    st.info("No hay datos para este ámbito y período. Selecciona otro intervalo de años.")
+    st.stop()
 
 # Cálculo de KPIs para el año más reciente de la selección
-latest_year = year_range[1]
-kpis = data_service.compute_kpis(df_filtered, group=group_key, year=latest_year)
+latest_year = int(df_filtered["year"].max())
+kpis = data_service.compute_kpis(df_raw, group=group_key, year=latest_year)
+cases_delta, rate_delta = previous_year_deltas(df_raw, group_key, latest_year)
 
 # ==============================================================================
 # 1. ENCABEZADO INSTITUCIONAL
@@ -377,19 +382,21 @@ st.markdown(
 # 2. PANEL DE SÍNTESIS EPIDEMIOLÓGICA (GOBERNANZA CLÍNICA Y CONTROL SGC)
 # ==============================================================================
 st.markdown(
-    """
+    f"""
     <div class="executive-summary-panel">
         <div class="summary-item">
-            <div class="summary-item-title">Vigilancia Pediátrica (&lt;5 años)</div>
-            Persistencia crítica en cuenca amazónica: <strong>Ucayali</strong> y <strong>Loreto</strong> registran &gt;91.7% de años en Categoría 1 de incidencia.
+            <div class="summary-item-title">Consulta seleccionada</div>
+            <strong>{scope_title}</strong><br>{group_label}
         </div>
         <div class="summary-item">
-            <div class="summary-item-title">Vigilancia Geriátrica (60+ años)</div>
-            Vulnerabilidad andina concentrada: <strong>Arequipa</strong> (88.9%) y <strong>Cusco</strong> (61.1%) presentan mayor demanda por heladas y bajas temperaturas.
+            <div class="summary-item-title">Período histórico</div>
+            Series de <strong>{year_range[0]} a {year_range[1]}</strong>.
+            Las tarjetas muestran el último año disponible: <strong>{latest_year}</strong>.
         </div>
         <div class="summary-item">
-            <div class="summary-item-title">Capacidad Predictiva (ML)</div>
-            Modelo <strong>XGBoost</strong> validado con backtesting rodante: <strong>R² = 0.935</strong> en niños y <strong>0.890</strong> en adultos a horizonte de 52 semanas.
+            <div class="summary-item-title">Modelos nacionales</div>
+            Evaluación a <strong>4 semanas</strong> y proyección a <strong>52 semanas</strong>.
+            Resultados precalculados, independientes del filtro territorial y temporal.
         </div>
     </div>
     """,
@@ -438,15 +445,18 @@ st.markdown(
 col_kpi1, col_kpi2, col_kpi3, col_kpi4 = st.columns(4)
 
 with col_kpi1:
-    delta_sign = "+" if kpis["delta_cases_pct"] > 0 else ""
-    delta_color = "#991b1b" if kpis["delta_cases_pct"] > 0 else "#166534"
+    delta_color = "#64748b" if cases_delta is None else "#991b1b" if cases_delta > 0 else "#166534"
+    delta_text = (
+        f"{cases_delta:+.1f}% vs. {latest_year - 1}" if cases_delta is not None
+        else f"Sin comparación porcentual con {latest_year - 1}"
+    )
     st.markdown(
         f"""
         <div class="kpi-card">
             <div class="kpi-label">Casos Diagnosticados ({int(kpis['year'])})</div>
             <div class="kpi-value">{int(kpis['cases']):,}</div>
             <div style="font-size: 0.82rem; font-weight: 600; color: {delta_color};">
-                {delta_sign}{kpis['delta_cases_pct']:.1f}% vs. año previo
+                {delta_text}
             </div>
             <div class="kpi-subtext">Total anual registrado</div>
         </div>
@@ -455,15 +465,18 @@ with col_kpi1:
     )
 
 with col_kpi2:
-    delta_rate_sign = "+" if kpis["delta_rate"] > 0 else ""
-    delta_rate_color = "#991b1b" if kpis["delta_rate"] > 0 else "#166534"
+    delta_rate_color = "#64748b" if rate_delta is None else "#991b1b" if rate_delta > 0 else "#166534"
+    delta_rate_text = (
+        f"{rate_delta:+.1f} puntos vs. {latest_year - 1}" if rate_delta is not None
+        else f"Sin comparación de tasa con {latest_year - 1}"
+    )
     st.markdown(
         f"""
         <div class="kpi-card">
             <div class="kpi-label">Tasa Incidencia x 100k hab.</div>
             <div class="kpi-value" style="color: var(--blue-primary);">{kpis['cases_rate']:.1f}</div>
             <div style="font-size: 0.82rem; font-weight: 600; color: {delta_rate_color};">
-                {delta_rate_sign}{kpis['delta_rate']:.1f} puntos de tasa
+                {delta_rate_text}
             </div>
             <div class="kpi-subtext">(Casos / Población) × 100,000</div>
         </div>
@@ -502,6 +515,10 @@ with col_kpi4:
     )
 
 st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
+st.caption(
+    "Las variaciones usan el año anterior del mismo ámbito y grupo, aunque esté fuera del intervalo visible. "
+    "Sin datos previos no se calcula la variación; con cero casos previos no se calcula el porcentaje."
+)
 
 # ==============================================================================
 # 5. PESTAÑAS PRINCIPALES (ORGANIZACIÓN EJECUTIVA CON NUMERACIÓN ROMANA)
@@ -651,94 +668,86 @@ with tab_severity:
 # PESTAÑA III: ESTRATIFICACIÓN DEPARTAMENTAL Y CARGA REGIONAL
 # ------------------------------------------------------------------------------
 with tab_regional:
-    st.markdown("#### Estratificación Territorial y Categorización de Riesgo Departamental")
-
-    col_reg_left, col_reg_right = st.columns([7, 5])
-
-    with col_reg_left:
-        top3_df = data_service.get_top3_frequencies(group=group_key)
-        if not top3_df.empty:
+    st.markdown(f"#### Persistencia en el Top 3 por tasa de incidencia — {group_label}")
+    st.caption(
+        "Comparación entre todos los departamentos para el período seleccionado. "
+        "El filtro territorial se aplica a las tendencias y tarjetas; aquí se conserva la comparación nacional."
+    )
+    rank_grid = data_service.get_rank_grid(group=group_key)
+    top3_df, ranking_years = top3_for_period(rank_grid, year_range)
+    if top3_df.empty:
+        st.info(
+            "No hay rankings disponibles para el período elegido. "
+            "Los rankings de menores de 5 años comienzan en 2000 y los de adultos de 60 años a más, en 2006."
+        )
+    else:
+        st.caption(
+            f"Años incluidos: {', '.join(map(str, ranking_years))}. "
+            "Los porcentajes usan los años con ranking disponible de cada departamento."
+        )
+        col_reg_left, col_reg_right = st.columns([7, 5])
+        with col_reg_left:
             fig_top3 = px.bar(
                 top3_df.head(10),
                 x="region",
                 y="top3_appearances",
                 text="percent_years_in_top3",
-                title=f"Departamentos con Mayor Persistencia en Categoría 1 de Incidencia ({group_label})",
-                labels={"region": "Departamento", "top3_appearances": "Años en el Top 3 (2000-2023)"},
+                hover_data=["observed_years"],
+                title=f"Frecuencia en los puestos 1 a 3 ({ranking_years[0]}–{ranking_years[-1]})",
+                labels={
+                    "region": "Departamento", "top3_appearances": "Años en el Top 3",
+                    "percent_years_in_top3": "% de años en el Top 3", "observed_years": "Años con ranking",
+                },
                 color="top3_appearances",
                 color_continuous_scale="Reds",
             )
-            fig_top3.update_traces(texttemplate="%{text:.1f}%", textposition="outside")
+            fig_top3.update_traces(texttemplate="%{text:.1f}%", textposition="outside", cliponaxis=False)
             fig_top3.update_layout(template="plotly_white", xaxis_tickangle=-45)
             st.plotly_chart(fig_top3, use_container_width=True)
-        else:
-            st.info("No se hallaron registros tabulados para la estratificación regional.")
-
-    with col_reg_right:
-        if group_key == "men5":
-            st.markdown(
-                """
-                <div class="analytical-box" style="border-left: 4px solid #b91c1c;">
-                    <div class="analytical-box-title">Hallazgo Epidemiológico: Concentración en Cuenca Amazónica</div>
-                    <div style="font-size: 0.88rem; color: var(--text-body); line-height: 1.5;">
-                        En menores de 5 años, la mayor persistencia histórica de incidencia crítica se concentra 
-                        en los departamentos de selva:
-                        <ul style="margin: 6px 0 0 16px; padding: 0;">
-                            <li><strong>Ucayali:</strong> 91.7% de los años evaluados en Categoría 1.</li>
-                            <li><strong>Loreto:</strong> 91.7% de los años evaluados en Categoría 1.</li>
-                            <li><strong>Huánuco:</strong> 37.5% de los años evaluados en Categoría 1.</li>
-                        </ul>
-                    </div>
-                </div>
-                """,
-                unsafe_allow_html=True,
+        with col_reg_right:
+            st.markdown("##### Departamentos con mayor frecuencia")
+            st.dataframe(
+                top3_df.head(3).rename(columns={
+                    "region": "Departamento", "top3_appearances": "Años Top 3",
+                    "observed_years": "Años con ranking", "percent_years_in_top3": "% Top 3",
+                }),
+                use_container_width=True, hide_index=True,
             )
-        else:
             st.markdown(
-                """
-                <div class="analytical-box" style="border-left: 4px solid #b45309;">
-                    <div class="analytical-box-title">Hallazgo Epidemiológico: Concentración en Sierra Sur</div>
-                    <div style="font-size: 0.88rem; color: var(--text-body); line-height: 1.5;">
-                        En adultos de 60 años a más, la carga de enfermedad crítica se desplaza hacia las 
-                        regiones andinas afectadas por heladas severas:
-                        <ul style="margin: 6px 0 0 16px; padding: 0;">
-                            <li><strong>Arequipa:</strong> 88.9% de los años evaluados en Categoría 1.</li>
-                            <li><strong>Cusco:</strong> 61.1% de los años evaluados en Categoría 1.</li>
-                            <li><strong>Moquegua:</strong> 50.0% de los años evaluados en Categoría 1.</li>
-                        </ul>
-                    </div>
-                </div>
-                """,
-                unsafe_allow_html=True,
+                "**Cómo leerlo:** Top 3 significa puestos 1, 2 o 3 por tasa anual de incidencia. "
+                "Se conservan los empates del ranking original, por lo que puede haber más de tres "
+                "departamentos en esos puestos durante un año."
             )
-
-        st.markdown(
-            """
-            <div class="analytical-box" style="border-left: 4px solid var(--blue-primary);">
-                <div class="analytical-box-title">Estratificación en Quintiles de Severidad</div>
-                <div style="font-size: 0.88rem; color: var(--text-body); line-height: 1.5;">
-                    Los 25 departamentos del Perú se clasifican anualmente en 5 quintiles normativos:<br>
-                    • <strong>Categoría 1 (Puestos 1 al 5):</strong> Carga muy alta / Prioridad sanitaria I.<br>
-                    • <strong>Categoría 2 (Puestos 6 al 10):</strong> Carga alta.<br>
-                    • <strong>Categoría 3 (Puestos 11 al 15):</strong> Carga media.<br>
-                    • <strong>Categorías 4 y 5 (Puestos 16 al 25):</strong> Carga moderada y baja.
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
+            st.caption(
+                "La Categoría 1 del análisis original comprende los puestos 1 a 5; "
+                "es una agrupación distinta del Top 3 mostrado aquí."
+            )
+        st.download_button(
+            "Descargar ranking del período (.CSV)",
+            data=top3_df.to_csv(index=False).encode("utf-8-sig"),
+            file_name=f"ranking_top3_{group_key}_{year_range[0]}_{year_range[1]}.csv",
+            mime="text/csv",
         )
 
 # ------------------------------------------------------------------------------
 # PESTAÑA IV: MODELOS PREDICTIVOS Y PROYECCIONES
 # ------------------------------------------------------------------------------
 with tab_prediction:
-    st.markdown(f"#### Validación Retrospectiva y Proyección a 52 Semanas ({group_label})")
+    st.markdown(f"#### Modelos nacionales — {group_label}")
+    st.info(
+        "Esta pestaña muestra resultados nacionales precalculados para el grupo poblacional elegido. "
+        "La selección de departamento y de años no modifica estos modelos ni vuelve a entrenarlos."
+    )
 
     metrics_df = model_service.get_national_metrics(group=group_key)
     col_ml_1, col_ml_2 = st.columns([2, 1])
 
     with col_ml_1:
-        st.markdown("##### Métricas Oficiales de Precisión (Rolling Backtesting de 5 Años)")
+        st.markdown("##### Evaluación histórica: horizonte de 4 semanas")
+        st.caption(
+            "Backtesting con ventanas de entrenamiento de 5 años y avance de 4 semanas. "
+            "Estas métricas no corresponden a la proyección de 52 semanas."
+        )
         st.dataframe(
             metrics_df[["model_display", "mae", "rmse", "r2"]].rename(
                 columns={"model_display": "Modelo Evaluado", "mae": "MAE", "rmse": "RMSE", "r2": "Coeficiente R²"}
@@ -764,10 +773,18 @@ with tab_prediction:
             unsafe_allow_html=True,
         )
 
-    st.markdown("##### Proyección Predictiva con Bandas de Incertidumbre (95% CI)")
+    st.markdown("##### Proyección nacional a 52 semanas con bandas aproximadas")
+    st.caption(
+        "Las bandas se construyen como pronóstico ± 1.96 × RMSE, con límite inferior en cero. "
+        "Esta aproximación no demuestra por sí sola una cobertura del 95 % a 52 semanas."
+    )
     future_df = model_service.get_national_future_predictions(group=group_key)
 
     if not future_df.empty:
+        st.caption(
+            f"Fechas del archivo de proyección: {future_df['date'].min():%d/%m/%Y} "
+            f"a {future_df['date'].max():%d/%m/%Y}."
+        )
         fig_pred = go.Figure()
         models_in_pred = future_df["model"].unique()
         colors = {"xgboost": "#1e3a8a", "random_forest": "#15803d", "lstm": "#4338ca"}
@@ -796,20 +813,26 @@ with tab_prediction:
                     line=dict(color="rgba(255,255,255,0)"),
                     hoverinfo="skip",
                     showlegend=True,
-                    name=f"Intervalo 95% CI ({name})",
+                    name=f"Banda aproximada ({name})",
                 )
             )
 
         fig_pred.update_layout(
-            title="Horizonte Temporal de Pronóstico: Incidencia Semanal Proyectada",
+            title=f"Proyección nacional de incidencia semanal — {group_label}",
             xaxis_title="Semana Epidemiológica Futura",
             yaxis_title="Tasa de Incidencia Predicha",
             template="plotly_white",
             hovermode="x unified",
         )
         st.plotly_chart(fig_pred, use_container_width=True)
+    else:
+        st.info("No hay un archivo de proyecciones disponible para este grupo poblacional.")
 
     st.markdown("##### Interpretabilidad del Modelo: Importancia de Variables")
+    st.caption(
+        "Referencia de los análisis regionales disponibles. "
+        "Este gráfico no cambia con el departamento ni el período seleccionado."
+    )
     feat_df = model_service.get_feature_importance_summary(group=group_key)
     if not feat_df.empty and "importance" in feat_df.columns:
         fig_feat = px.bar(
@@ -905,7 +928,7 @@ st.markdown(
             • <strong>Tasa de Incidencia Estandarizada:</strong> <code>(Casos / Población) × 100,000 hab.</code> (Ajustada por interpolación exponencial censal anual 2000–2023).<br>
             • <strong>Tasa de Hospitalización (HR):</strong> <code>(Hospitalizaciones / Casos) × 100</code> (Índice de demanda y presión hospitalaria).<br>
             • <strong>Tasa de Letalidad (CFR):</strong> <code>(Defunciones / Casos) × 100</code> (Proporción de mortalidad en casos diagnosticados).<br>
-            • <strong>Bandas de Incertidumbre Predictiva:</strong> <code>Pronóstico ± 1.96 × RMSE</code> (Intervalo de confianza empírico al 95%).
+            • <strong>Bandas Aproximadas de Incertidumbre:</strong> <code>Pronóstico ± 1.96 × RMSE</code> (Límite inferior en cero; cobertura a 52 semanas no verificada).
         </div>
     </div>
     """,
