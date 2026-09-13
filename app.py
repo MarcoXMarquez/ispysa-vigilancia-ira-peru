@@ -1,7 +1,7 @@
 """
 Plataforma de Vigilancia y Monitoreo Epidemiológico IRA - Perú (2000-2023)
 Sistema de Información para la Toma de Decisiones en Salud Pública.
-Conforme a Normas Internacionales ISO 9241 (11, 210, 110, 12) e ISO/IEC 25010.
+Prototipo académico con controles de calidad de datos y evidencias de validación.
 """
 
 import sys
@@ -19,6 +19,7 @@ sys.path.insert(0, str(CURRENT_DIR))
 from src.services.data_service import EpidemiologyDataService
 from src.services.model_service import EpidemiologyModelService
 from src.app_indicators import previous_year_deltas, top3_for_period
+from src.quality_panel import evidence_report, export_with_evidence, render_quality_panel
 
 # ==============================================================================
 # CONFIGURACIÓN DE PÁGINA (ISO 9241-12: Densidad Visual y Ergonomía Espacial)
@@ -275,13 +276,19 @@ st.markdown(
 )
 
 
-@st.cache_resource
 def get_services():
-    """Instancia y cachea los servicios para máxima eficiencia (ISO 9241-11: Eficiencia)."""
+    """Instancia servicios por ejecución para aislar evidencias y volver a validar archivos."""
     return EpidemiologyDataService(CURRENT_DIR), EpidemiologyModelService(CURRENT_DIR)
 
 
 data_service, model_service = get_services()
+annual_data = data_service.get_annual_measures()
+if annual_data.empty:
+    st.error("No es posible calcular indicadores: el archivo anual falta o no supera la validación.")
+    st.info("Revisa los resultados de validación y restaura o corrige el archivo indicado. Después recarga la página.")
+    render_quality_panel(data_service, model_service)
+    st.stop()
+
 
 # ==============================================================================
 # BARRA LATERAL: PARÁMETROS DE VIGILANCIA (ISO 9241-110: Diálogo Ergonómico)
@@ -333,7 +340,7 @@ with st.sidebar:
     st.markdown("---")
     st.caption("Curso: Calidad de Software")
     st.caption("Modalidad: Equipo de 05 Integrantes")
-    st.caption("Fecha Oficial: Martes 01 de noviembre")
+    st.caption("Datos históricos disponibles: 2000–2023")
 
 # ==============================================================================
 # CARGA Y FILTRADO DE DATOS EPIDEMIOLÓGICOS
@@ -357,6 +364,13 @@ if df_filtered.empty:
 latest_year = int(df_filtered["year"].max())
 kpis = data_service.compute_kpis(df_raw, group=group_key, year=latest_year)
 cases_delta, rate_delta = previous_year_deltas(df_raw, group_key, latest_year)
+hr_display = f"{kpis['hr']:.2f}%" if pd.notna(kpis["hr"]) else "No calculable"
+cfr_display = f"{kpis['cfr']:.2f}%" if pd.notna(kpis["cfr"]) else "No calculable"
+selection_context = {
+    "ambito": selected_scope, "grupo": group_key, "periodo": list(year_range),
+    "ano_indicadores": latest_year, "ambito_pronosticos": "Nacional",
+    "formula_tasa": "Casos del grupo / población total × 100000",
+}
 
 # ==============================================================================
 # 1. ENCABEZADO INSTITUCIONAL
@@ -364,7 +378,7 @@ cases_delta, rate_delta = previous_year_deltas(df_raw, group_key, latest_year)
 st.markdown(
     f"""
     <div class="institutional-hero">
-        <div class="institutional-badge">SISTEMA DE VIGILANCIA SANITARIA • NORMATIVA ISO 9241 COMPLIANT</div>
+        <div class="institutional-badge">ANÁLISIS HISTÓRICO DE SALUD PÚBLICA • PROTOTIPO ACADÉMICO</div>
         <div class="institutional-title">
             Plataforma de Monitoreo y Vigilancia Epidemiológica de Infecciones Respiratorias Agudas
         </div>
@@ -408,27 +422,16 @@ st.markdown(
 # ==============================================================================
 inc_rate = kpis["cases_rate"]
 if inc_rate > 350:
-    alert_class = "clinical-alert-danger"
-    alert_code = "[ESTADO EPIDEMIOLÓGICO: ALERTA CRÍTICA]"
-    alert_msg = (
-        f"La tasa de incidencia acumulada se sitúa en {inc_rate:.1f} por 100,000 habitantes, superando "
-        "el umbral de seguridad estacional. Se recomienda la activación de planes de contingencia hospitalaria, "
-        "monitoreo de disponibilidad de oxígeno medicinal y abastecimiento oportuno de medicamentos esenciales."
-    )
+    alert_class, alert_code = "clinical-alert-danger", "TASA ANUAL MAYOR A 350"
 elif inc_rate > 150:
-    alert_class = "clinical-alert-warning"
-    alert_code = "[ESTADO EPIDEMIOLÓGICO: ALERTA PREVENTIVA]"
-    alert_msg = (
-        f"La tasa de incidencia se encuentra en {inc_rate:.1f} por 100,000 habitantes en zona de advertencia. "
-        "Se recomienda intensificar el seguimiento semanal de casos y verificar cobertura de vacunación."
-    )
+    alert_class, alert_code = "clinical-alert-warning", "TASA ANUAL MAYOR A 150 Y HASTA 350"
 else:
-    alert_class = "clinical-alert-normal"
-    alert_code = "[ESTADO EPIDEMIOLÓGICO: BAJO CONTROL]"
-    alert_msg = (
-        f"La tasa de incidencia de {inc_rate:.1f} por 100,000 habitantes se mantiene dentro de los percentiles "
-        "históricos esperados para el período analizado."
-    )
+    alert_class, alert_code = "clinical-alert-normal", "TASA ANUAL HASTA 150"
+alert_msg = (
+    f"Valor observado en {latest_year}: {inc_rate:.1f} por 100,000 habitantes. "
+    "Clasificación ilustrativa con cortes de 150 y 350; su validación epidemiológica está pendiente. "
+    "Describe datos históricos y no determina el estado sanitario actual."
+)
 
 st.markdown(
     f"""
@@ -489,7 +492,7 @@ with col_kpi3:
         f"""
         <div class="kpi-card">
             <div class="kpi-label">Tasa de Hospitalización (HR)</div>
-            <div class="kpi-value" style="color: #92400e;">{kpis['hr']:.2f}%</div>
+            <div class="kpi-value" style="color: #92400e;">{hr_display}</div>
             <div style="font-size: 0.82rem; font-weight: 600; color: var(--text-body);">
                 {int(kpis['hospitalizations']):,} internamientos
             </div>
@@ -504,7 +507,7 @@ with col_kpi4:
         f"""
         <div class="kpi-card">
             <div class="kpi-label">Tasa de Letalidad (CFR)</div>
-            <div class="kpi-value" style="color: #991b1b;">{kpis['cfr']:.2f}%</div>
+            <div class="kpi-value" style="color: #991b1b;">{cfr_display}</div>
             <div style="font-size: 0.82rem; font-weight: 600; color: var(--text-body);">
                 {int(kpis['deaths']):,} defunciones
             </div>
@@ -517,7 +520,8 @@ with col_kpi4:
 st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
 st.caption(
     "Las variaciones usan el año anterior del mismo ámbito y grupo, aunque esté fuera del intervalo visible. "
-    "Sin datos previos no se calcula la variación; con cero casos previos no se calcula el porcentaje."
+    "Sin datos previos no se calcula la variación; con cero casos previos no se calcula el porcentaje. "
+    "HR y CFR no son calculables cuando no hay casos."
 )
 
 # ==============================================================================
@@ -528,7 +532,7 @@ tab_trend, tab_severity, tab_regional, tab_prediction, tab_quality = st.tabs([
     "II. Severidad Clínica y Letalidad (HR / CFR)",
     "III. Estratificación Departamental y Carga Regional",
     "IV. Modelos Predictivos y Proyecciones (ML / DL)",
-    "V. Auditoría de Calidad y Estándares ISO 9241",
+    "V. Calidad de Datos y Evidencias",
 ])
 
 # ------------------------------------------------------------------------------
@@ -600,6 +604,12 @@ with tab_trend:
             mime="text/csv",
         )
 
+    st.download_button(
+        "Descargar consulta con fuentes (.ZIP)",
+        export_with_evidence(df_display, evidence_report(data_service, model_service, selection_context)),
+        file_name=f"consulta_{group_key}_{year_range[0]}_{year_range[1]}.zip", mime="application/zip",
+    )
+
 # ------------------------------------------------------------------------------
 # PESTAÑA II: SEVERIDAD CLÍNICA Y LETALIDAD
 # ------------------------------------------------------------------------------
@@ -646,8 +656,9 @@ with tab_severity:
         st.plotly_chart(fig_sev, use_container_width=True)
 
     with col_sev_b:
+        scatter_data = df_filtered.dropna(subset=[f"hr_{group_key}", f"cfr_{group_key}"])
         fig_scatter = px.scatter(
-            df_filtered,
+            scatter_data,
             x=f"hr_{group_key}",
             y=f"cfr_{group_key}",
             text="year",
@@ -740,47 +751,51 @@ with tab_prediction:
     )
 
     metrics_df = model_service.get_national_metrics(group=group_key)
-    col_ml_1, col_ml_2 = st.columns([2, 1])
+    if metrics_df.empty:
+        st.info("Métricas no disponibles o archivo no válido. Revisa el detalle en Calidad de Datos y Evidencias.")
+    else:
+        col_ml_1, col_ml_2 = st.columns([2, 1])
 
-    with col_ml_1:
-        st.markdown("##### Evaluación histórica: horizonte de 4 semanas")
-        st.caption(
-            "Backtesting con ventanas de entrenamiento de 5 años y avance de 4 semanas. "
-            "Estas métricas no corresponden a la proyección de 52 semanas."
-        )
-        st.dataframe(
-            metrics_df[["model_display", "mae", "rmse", "r2"]].rename(
-                columns={"model_display": "Modelo Evaluado", "mae": "MAE", "rmse": "RMSE", "r2": "Coeficiente R²"}
-            ),
-            use_container_width=True,
-            hide_index=True,
-        )
+        with col_ml_1:
+            st.markdown("##### Evaluación histórica: horizonte de 4 semanas")
+            st.caption(
+                "Backtesting con ventanas de entrenamiento de 5 años y avance de 4 semanas. "
+                "Estas métricas no corresponden a la proyección de 52 semanas."
+            )
+            st.dataframe(
+                metrics_df[["model_display", "mae", "rmse", "r2"]].rename(
+                    columns={"model_display": "Modelo Evaluado", "mae": "MAE", "rmse": "RMSE", "r2": "Coeficiente R²"}
+                ),
+                use_container_width=True,
+                hide_index=True,
+            )
 
-    with col_ml_2:
-        best_model = metrics_df.sort_values("r2", ascending=False).iloc[0]
-        st.markdown(
-            f"""
-            <div class="analytical-box" style="border-left: 4px solid #15803d;">
-                <div class="analytical-box-title" style="color: #15803d;">Modelo con Desempeño Óptimo</div>
-                <div style="font-size: 1.35rem; font-weight: 700; color: var(--text-headline); margin: 4px 0;">{best_model['model_display']}</div>
-                <div style="font-size: 0.9rem; color: var(--text-body); line-height: 1.5;">
-                    • Coeficiente R²: <strong>{best_model['r2']:.3f}</strong><br>
-                    • Error Absoluto Medio (MAE): <strong>{best_model['mae']:.3f}</strong><br>
-                    • Raíz de Error Cuadrático (RMSE): <strong>{best_model['rmse']:.3f}</strong>
+        with col_ml_2:
+            best_model = metrics_df.sort_values("r2", ascending=False).iloc[0]
+            st.markdown(
+                f"""
+                <div class="analytical-box" style="border-left: 4px solid #15803d;">
+                    <div class="analytical-box-title" style="color: #15803d;">Modelo con Desempeño Óptimo</div>
+                    <div style="font-size: 1.35rem; font-weight: 700; color: var(--text-headline); margin: 4px 0;">{best_model['model_display']}</div>
+                    <div style="font-size: 0.9rem; color: var(--text-body); line-height: 1.5;">
+                        • Coeficiente R²: <strong>{best_model['r2']:.3f}</strong><br>
+                        • Error Absoluto Medio (MAE): <strong>{best_model['mae']:.3f}</strong><br>
+                        • Raíz de Error Cuadrático (RMSE): <strong>{best_model['rmse']:.3f}</strong>
+                    </div>
                 </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+                """,
+                unsafe_allow_html=True,
+            )
 
     st.markdown("##### Proyección nacional a 52 semanas con bandas aproximadas")
-    st.caption(
-        "Las bandas se construyen como pronóstico ± 1.96 × RMSE, con límite inferior en cero. "
-        "Esta aproximación no demuestra por sí sola una cobertura del 95 % a 52 semanas."
-    )
     future_df = model_service.get_national_future_predictions(group=group_key)
 
     if not future_df.empty:
+        st.caption(future_df.attrs.get("band_method", "Metodología de las bandas no documentada."))
+        st.caption("La cobertura predictiva del 95 % a 52 semanas no ha sido verificada.")
+        missing_bands = future_df.attrs.get("missing_band_models", [])
+        if missing_bands:
+            st.info("Sin RMSE válido para: " + ", ".join(missing_bands) + ". Se muestra solo el pronóstico puntual.")
         st.caption(
             f"Fechas del archivo de proyección: {future_df['date'].min():%d/%m/%Y} "
             f"a {future_df['date'].max():%d/%m/%Y}."
@@ -804,18 +819,19 @@ with tab_prediction:
                 )
             )
 
-            fig_pred.add_trace(
-                go.Scatter(
-                    x=pd.concat([sub["date"], sub["date"][::-1]]),
-                    y=pd.concat([sub["upper_ci"], sub["lower_ci"][::-1]]),
-                    fill="toself",
-                    fillcolor="rgba(203, 213, 225, 0.25)",
-                    line=dict(color="rgba(255,255,255,0)"),
-                    hoverinfo="skip",
-                    showlegend=True,
-                    name=f"Banda aproximada ({name})",
+            if sub[["lower_ci", "upper_ci"]].notna().all().all():
+                fig_pred.add_trace(
+                    go.Scatter(
+                        x=pd.concat([sub["date"], sub["date"][::-1]]),
+                        y=pd.concat([sub["upper_ci"], sub["lower_ci"][::-1]]),
+                        fill="toself",
+                        fillcolor="rgba(203, 213, 225, 0.25)",
+                        line=dict(color="rgba(255,255,255,0)"),
+                        hoverinfo="skip",
+                        showlegend=True,
+                        name=f"Banda aproximada ({name})",
+                    )
                 )
-            )
 
         fig_pred.update_layout(
             title=f"Proyección nacional de incidencia semanal — {group_label}",
@@ -828,22 +844,22 @@ with tab_prediction:
     else:
         st.info("No hay un archivo de proyecciones disponible para este grupo poblacional.")
 
-    st.markdown("##### Interpretabilidad del Modelo: Importancia de Variables")
-    st.caption(
-        "Referencia de los análisis regionales disponibles. "
-        "Este gráfico no cambia con el departamento ni el período seleccionado."
-    )
-    feat_df = model_service.get_feature_importance_summary(group=group_key)
-    if not feat_df.empty and "importance" in feat_df.columns:
+    st.markdown("##### Importancia de variables: archivo regional de referencia")
+    importance_sources = model_service.get_feature_importance_sources(group_key)
+    selected_importance = st.selectbox(
+        "Resultado regional (departamento y modelo indicados en el nombre):",
+        importance_sources,
+    ) if importance_sources else None
+    feat_df = model_service.get_feature_importance_summary(group_key, source=selected_importance)
+    if feat_df.empty:
+        st.info("Importancias no disponibles o archivo no válido. No se utilizan valores ilustrativos.")
+    else:
+        st.caption("Fuente: " + feat_df.attrs["source"])
         fig_feat = px.bar(
-            feat_df.sort_values("importance", ascending=True),
-            x="importance",
-            y="feature",
-            orientation="h",
-            title="Importancia Relativa de Variables Predictoras (XGBoost / Random Forest)",
-            labels={"importance": "Importancia Normalizada", "feature": "Variable"},
-            color="importance",
-            color_continuous_scale="Blues",
+            feat_df.sort_values("importance", ascending=True), x="importance", y="feature",
+            orientation="h", title=f"Importancia de variables — {selected_importance}",
+            labels={"importance": "Importancia reportada", "feature": "Variable"},
+            color="importance", color_continuous_scale="Blues",
         )
         fig_feat.update_layout(template="plotly_white")
         st.plotly_chart(fig_feat, use_container_width=True)
@@ -852,68 +868,7 @@ with tab_prediction:
 # PESTAÑA V: AUDITORÍA DE CALIDAD Y ESTÁNDARES ISO 9241
 # ------------------------------------------------------------------------------
 with tab_quality:
-    st.markdown("#### Matriz de Trazabilidad y Cumplimiento Normativo ISO 9241 e ISO/IEC 25010")
-    st.markdown(
-        """
-        El diseño, arquitectura e implementación de la presente plataforma se fundamentan en estándares
-        internacionales de ergonomía de la interacción humano-sistema y calidad de producto de software:
-        """
-    )
-
-    iso_full_data = [
-        {
-            "Estándar": "ISO 9241-11",
-            "Principio Rector": "Medición de Usabilidad",
-            "Dimensiones Clave": "Eficacia, Eficiencia y Satisfacción",
-            "Implementación en el Sistema": (
-                "• Eficacia: Consultas sin errores de 25 departamentos y 2 grupos etarios en 2 selecciones directas.\n"
-                "• Eficiencia: Caché en memoria (@st.cache_resource) que reduce el tiempo de renderizado a <0.2s.\n"
-                "• Satisfacción: Visualización sobria, libre de ruido visual, con tablas y exportación formal en CSV."
-            ),
-        },
-        {
-            "Estándar": "ISO 9241-210",
-            "Principio Rector": "Diseño Centrado en el Humano (HCD)",
-            "Dimensiones Clave": "Comprensión del contexto de uso y necesidades del usuario",
-            "Implementación en el Sistema": (
-                "• Adaptado al flujo cognitivo de especialistas en salud pública y directores de epidemiología.\n"
-                "• Estructura en secuencia: Diagnóstico macro (Semáforo) → Severidad clínica → Estratificación → Proyección a 52 semanas."
-            ),
-        },
-        {
-            "Estándar": "ISO 9241-110",
-            "Principio Rector": "Principios de Diálogo Ergonómico",
-            "Dimensiones Clave": "Adecuación a la tarea, autodescripción, control del usuario, tolerancia a fallos",
-            "Implementación en el Sistema": (
-                "• Adecuación: Tasas por 100k hab. estandarizadas para evitar distorsiones demográficas.\n"
-                "• Autodescripción: Notas metodológicas y glosario explícito de términos clínicos.\n"
-                "• Control: Filtros temporales libres (2000-2023) y exportación de datos.\n"
-                "• Tolerancia: Manejo matemático defensivo de divisiones entre cero y datos incompletos."
-            ),
-        },
-        {
-            "Estándar": "ISO 9241-12",
-            "Principio Rector": "Representación Visual de la Información",
-            "Dimensiones Clave": "Organización espacial, legibilidad, agrupamiento perceptivo y color",
-            "Implementación en el Sistema": (
-                "• Rejilla matemática de 8pt (Design Tokens) y jerarquía tipográfica con ratios formales.\n"
-                "• Semáforo de alerta con colores institucionales normalizados (Verde, Amarillo, Rojo tenue).\n"
-                "• Contraste visual estricto (WCAG AA >= 4.5:1) accesible para personas con daltonismo."
-            ),
-        },
-        {
-            "Estándar": "ISO/IEC 25010",
-            "Principio Rector": "Calidad del Producto Software",
-            "Dimensiones Clave": "Modularidad, fiabilidad, mantenibilidad, portabilidad",
-            "Implementación en el Sistema": (
-                "• Ingeniería Inversa: Encapsulación del código legado en servicios modulares desacoplados.\n"
-                "• Fiabilidad: Suite automatizada de 6 pruebas unitarias con 100% de casos aprobados.\n"
-                "• Portabilidad: Despliegue local inmediato en Windows mediante archivo ejecutar_aplicativo.bat."
-            ),
-        },
-    ]
-
-    st.table(pd.DataFrame(iso_full_data))
+    render_quality_panel(data_service, model_service, selection_context)
 
 # ==============================================================================
 # 6. PANEL INFERIOR: ESPECIFICACIONES METODOLÓGICAS Y GLOSARIO OFICIAL
@@ -922,10 +877,10 @@ st.markdown(
     """
     <div class="methodology-panel">
         <div style="font-size: 0.88rem; font-weight: 700; color: var(--navy-primary); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--border-subtle); padding-bottom: 6px;">
-            Ficha Técnica Epidemiológica y Metodología Normada (MINSA / OMS)
+            Ficha técnica y alcance de los indicadores
         </div>
         <div style="font-size: 0.85rem; color: var(--text-body); line-height: 1.6;">
-            • <strong>Tasa de Incidencia Estandarizada:</strong> <code>(Casos / Población) × 100,000 hab.</code> (Ajustada por interpolación exponencial censal anual 2000–2023).<br>
+            • <strong>Tasa de casos por población total:</strong> <code>(Casos / Población) × 100,000 hab.</code> (Población total interpolada; no es una tasa específica por población del grupo etario).<br>
             • <strong>Tasa de Hospitalización (HR):</strong> <code>(Hospitalizaciones / Casos) × 100</code> (Índice de demanda y presión hospitalaria).<br>
             • <strong>Tasa de Letalidad (CFR):</strong> <code>(Defunciones / Casos) × 100</code> (Proporción de mortalidad en casos diagnosticados).<br>
             • <strong>Bandas Aproximadas de Incertidumbre:</strong> <code>Pronóstico ± 1.96 × RMSE</code> (Límite inferior en cero; cobertura a 52 semanas no verificada).
@@ -936,4 +891,4 @@ st.markdown(
 )
 
 st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
-st.caption("Plataforma de Vigilancia Epidemiológica de Salud Pública © 2026 — Diseñada bajo Estándares ISO 9241 e ISO/IEC 25010")
+st.caption("Plataforma de análisis epidemiológico © 2026 — Evaluaciones de calidad documentadas en la pestaña V")

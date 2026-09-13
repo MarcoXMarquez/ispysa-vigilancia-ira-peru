@@ -1,132 +1,134 @@
-"""
-Módulo de Servicio de Modelos Predictivos
-Encapsula la carga de métricas de precisión (R2, MAE, RMSE),
-predicciones históricas y pronósticos futuros (Random Forest, XGBoost, LSTM).
-"""
+"""Acceso a resultados predictivos con validación y procedencia explícita."""
 
 from pathlib import Path
-from typing import Dict, Optional, Tuple
-import pandas as pd
+from typing import Optional
+
 import numpy as np
+import pandas as pd
+
+from src.services.quality import (
+    ArtifactReader, ValidationError, dates_column, numeric_columns,
+    require_columns, text_columns, unique_rows,
+)
+
+
+def validate_metrics(df):
+    require_columns(df, ["model", "mae", "rmse", "r2"])
+    text_columns(df, ["model"])
+    unique_rows(df, ["model"])
+    numeric_columns(df, ["mae", "rmse"])
+    numeric_columns(df, ["r2"], nonnegative=False)
+    if (df["r2"] > 1).any():
+        raise ValidationError("R² no puede superar 1.")
+
+
+def validate_predictions(df, historical=False):
+    required = ["date", "model", "predicted"] + (["actual"] if historical else [])
+    require_columns(df, required)
+    text_columns(df, ["model"])
+    dates_column(df)
+    unique_rows(df, ["model", "date"])
+    numeric_columns(df, ["predicted"] + (["actual"] if historical else []))
+    if not historical:
+        for _, predictions in df.groupby("model"):
+            dates = predictions["date"].sort_values()
+            if len(dates) != 52 or not dates.diff().dropna().eq(pd.Timedelta(days=7)).all():
+                raise ValidationError("Cada modelo debe contener 52 pronósticos semanales consecutivos.")
+    bounds = ["lower_ci", "upper_ci"]
+    if any(column in df for column in bounds):
+        require_columns(df, bounds)
+        numeric_columns(df, bounds)
+        if ((df["lower_ci"] > df["predicted"]) | (df["upper_ci"] < df["predicted"])).any():
+            raise ValidationError("Las bandas deben contener el pronóstico y estar ordenadas.")
+
+
+def validate_importance(df):
+    require_columns(df, ["feature", "importance"])
+    text_columns(df, ["feature"])
+    unique_rows(df, ["feature"])
+    numeric_columns(df, ["importance"])
+    if df["importance"].sum() <= 0:
+        raise ValidationError("La suma de importancias debe ser positiva.")
+
+
+def validate_weekly(df):
+    require_columns(df, ["date"])
+    dates_column(df)
+    unique_rows(df, ["date"])
 
 
 class EpidemiologyModelService:
-    """
-    Servicio de acceso a modelos predictivos y pronósticos epidemiológicos.
-    """
-
     def __init__(self, root_dir: Optional[Path] = None):
-        if root_dir is None:
-            self.root_dir = Path(__file__).resolve().parents[2]
-        else:
-            self.root_dir = Path(root_dir)
-
+        self.root_dir = Path(root_dir) if root_dir is not None else Path(__file__).resolve().parents[2]
         self.outputs_dir = self.root_dir / "outputs"
+        self.reader = ArtifactReader(self.root_dir)
 
-    def get_national_metrics(self, group: str = "men5") -> pd.DataFrame:
-        """
-        Retorna la tabla de métricas (MAE, RMSE, R2) para los modelos de ML a nivel nacional.
-        group: 'men5' o '60mas'
-        """
-        folder = "national_children_cases_ml" if group == "men5" else "national_adults_cases_ml"
+    @staticmethod
+    def _folder(group):
+        if group not in ("men5", "60mas"):
+            raise ValueError("Grupo poblacional desconocido.")
+        return "national_children_cases_ml" if group == "men5" else "national_adults_cases_ml"
+
+    def get_national_metrics(self, group="men5"):
+        folder = self._folder(group)
         path = self.outputs_dir / folder / f"{folder}_metrics.csv"
+        df = self.reader.read(path, validate_metrics, "Métricas finitas, modelos únicos y errores no negativos")
+        if not df.empty:
+            df["model_display"] = df["model"].replace({
+                "random_forest": "Random Forest", "xgboost": "XGBoost", "lstm": "LSTM",
+                "arima": "ARIMA", "naive": "Naïve Baseline",
+            })
+        return df
 
-        if path.exists():
-            df = pd.read_csv(path)
-            # Asegurar formato legible
-            if "model" in df.columns:
-                df["model_display"] = df["model"].replace({
-                    "random_forest": "Random Forest",
-                    "xgboost": "XGBoost",
-                    "lstm": "LSTM (Deep Learning)",
-                    "arima": "ARIMA",
-                    "naive": "Naïve Baseline",
-                })
-            return df
-        
-        # Valores de referencia oficiales del Anexo si no existiera el archivo
-        if group == "men5":
-            return pd.DataFrame([
-                {"model": "random_forest", "model_display": "Random Forest", "mae": 0.210, "rmse": 0.296, "r2": 0.922},
-                {"model": "xgboost", "model_display": "XGBoost", "mae": 0.184, "rmse": 0.271, "r2": 0.935},
-            ])
-        else:
-            return pd.DataFrame([
-                {"model": "random_forest", "model_display": "Random Forest", "mae": 0.107, "rmse": 0.183, "r2": 0.869},
-                {"model": "xgboost", "model_display": "XGBoost", "mae": 0.097, "rmse": 0.168, "r2": 0.890},
-            ])
-
-    def get_national_weekly_series(self, group: str = "men5") -> pd.DataFrame:
-        """Retorna la serie semanal histórica observada."""
-        folder = "national_children_cases_ml" if group == "men5" else "national_adults_cases_ml"
+    def get_national_weekly_series(self, group="men5"):
+        folder = self._folder(group)
         path = self.outputs_dir / folder / f"{folder.replace('_ml', '')}_weekly_series.csv"
-        
-        if not path.exists():
-            # Buscar alternativa con nombre exacto del script
-            candidates = list((self.outputs_dir / folder).glob("*weekly_series.csv"))
-            if candidates:
-                path = candidates[0]
+        return self.reader.read(path, validate_weekly, "Fechas semanales válidas y únicas")
 
-        if path.exists():
-            df = pd.read_csv(path)
-            df["date"] = pd.to_datetime(df["date"])
-            return df
-        return pd.DataFrame()
-
-    def get_national_predictions(self, group: str = "men5") -> pd.DataFrame:
-        """Retorna las predicciones de evaluación histórica comparadas con el valor real."""
-        folder = "national_children_cases_ml" if group == "men5" else "national_adults_cases_ml"
+    def get_national_predictions(self, group="men5"):
+        folder = self._folder(group)
         path = self.outputs_dir / folder / f"{folder}_predictions.csv"
+        return self.reader.read(path, lambda df: validate_predictions(df, historical=True),
+                                "Valores históricos y pronósticos válidos, sin fechas duplicadas por modelo")
 
-        if path.exists():
-            df = pd.read_csv(path)
-            df["date"] = pd.to_datetime(df["date"])
-            return df
-        return pd.DataFrame()
-
-    def get_national_future_predictions(self, group: str = "men5") -> pd.DataFrame:
-        """
-        Retorna las predicciones futuras (proyección a 52 semanas) con bandas de incertidumbre.
-        """
-        folder = "national_children_cases_ml" if group == "men5" else "national_adults_cases_ml"
+    def get_national_future_predictions(self, group="men5"):
+        folder = self._folder(group)
         path = self.outputs_dir / folder / f"{folder}_future_predictions.csv"
-
-        if path.exists():
-            df = pd.read_csv(path)
-            df["date"] = pd.to_datetime(df["date"])
-
-            # Añadir intervalos de confianza empíricos (95%) si no están en el CSV
-            # Basados en el RMSE del modelo
-            metrics = self.get_national_metrics(group)
-            metrics_dict = dict(zip(metrics["model"], metrics["rmse"]))
-
-            if "lower_ci" not in df.columns:
-                df["rmse_ref"] = df["model"].map(metrics_dict).fillna(0.25)
-                df["lower_ci"] = np.clip(df["predicted"] - 1.96 * df["rmse_ref"], 0, None)
-                df["upper_ci"] = df["predicted"] + 1.96 * df["rmse_ref"]
-
+        df = self.reader.read(path, validate_predictions, "52 semanas consecutivas por modelo; valores y bandas válidos")
+        if df.empty:
             return df
-        return pd.DataFrame()
+        if "lower_ci" in df:
+            df.attrs["band_method"] = "Bandas incluidas en el archivo; metodología externa no documentada."
+            return df
 
-    def get_feature_importance_summary(self, group: str = "men5") -> pd.DataFrame:
-        """Retorna las variables más relevantes para los modelos de ML."""
+        metrics = self.get_national_metrics(group)
+        # Sin RMSE medido se conserva la predicción puntual, pero no se inventa una banda.
+        rmse = df["model"].map(metrics.set_index("model")["rmse"]) if not metrics.empty else pd.Series(
+            np.nan, index=df.index, dtype=float,
+        )
+        df["lower_ci"] = (df["predicted"] - 1.96 * rmse).clip(lower=0)
+        df["upper_ci"] = df["predicted"] + 1.96 * rmse
+        df.attrs["band_method"] = "Bandas aproximadas: pronóstico ± 1.96 × RMSE; límite inferior en cero."
+        df.attrs["missing_band_models"] = sorted(df.loc[rmse.isna(), "model"].unique().tolist())
+        source = df.attrs["source"]
+        self.reader.evidence[source]["transformacion"] = df.attrs["band_method"]
+        self.reader.evidence[source]["dependencias"] = [f"outputs/{folder}/{folder}_metrics.csv"]
+        self.reader.evidence[source]["modelos_sin_banda"] = df.attrs["missing_band_models"]
+        return df
+
+    def get_feature_importance_sources(self, group="men5"):
+        self._folder(group)  # validar el grupo antes de construir la ruta
         folder = "children_feature_importance_ci" if group == "men5" else "adults_feature_importance_ci"
-        folder_path = self.outputs_dir / folder
+        return sorted(path.name for path in (self.outputs_dir / folder).glob("*_feature_importance.csv"))
 
-        # Si existen CSVs en el folder
-        if folder_path.exists():
-            csvs = list(folder_path.glob("*.csv"))
-            for csv_file in csvs:
-                if "importance" in csv_file.name.lower():
-                    df = pd.read_csv(csv_file)
-                    return df
-
-        # Datos sintetizados del análisis canónico reportado en el proyecto
-        top_features = [
-            {"feature": "lag_1", "importance": 0.42, "description": "Incidencia de la semana epidemiológica anterior"},
-            {"feature": "roll_mean_4", "importance": 0.23, "description": "Media móvil de las últimas 4 semanas"},
-            {"feature": "lag_52", "importance": 0.15, "description": "Memoria estacional (mismo período del año previo)"},
-            {"feature": "sin_week / cos_week", "importance": 0.11, "description": "Ciclo estacional anual astronómico"},
-            {"feature": "roll_std_8", "importance": 0.09, "description": "Variabilidad y volatilidad reciente de 8 semanas"},
-        ]
-        return pd.DataFrame(top_features)
+    def get_feature_importance_summary(self, group="men5", source=None):
+        sources = self.get_feature_importance_sources(group)
+        if source is not None and source not in sources:
+            raise ValueError("Selecciona uno de los archivos de importancia disponibles.")
+        folder = "children_feature_importance_ci" if group == "men5" else "adults_feature_importance_ci"
+        name = source or (sources[0] if sources else "feature_importance.csv")
+        path = self.outputs_dir / folder / name
+        df = self.reader.read(path, validate_importance, "Variables únicas e importancias finitas no negativas")
+        if not df.empty:
+            df = df.sort_values("importance", ascending=False).reset_index(drop=True)
+        return df
