@@ -13,6 +13,33 @@ The main goal is to understand temporal and regional patterns in IRA incidence a
 
 ---
 
+## ISO/IEC 25000 Quality Measurement
+
+The application includes a **Product Quality Metrics** panel. It presents a formal
+measurement model and exports session evidence as JSON. It never treats a missing
+measurement as a passing result.
+
+| Characteristic | Indicator | Capture method | Target |
+|---|---|---|---|
+| Functional suitability | Validation Compliance Rate | Data-validation evidence from the current session | >= 95% |
+| Reliability | Traceable Source Rate | SHA-256 and UTC read time for verified sources | 100% |
+| Performance efficiency | Data load / filter calculation time | `time.perf_counter()` in the current session | Establish a baseline before setting a limit |
+| Maintainability | Service Test Coverage; Critical Flake8 Errors | GitHub Actions evidence | >= 80%; 0 errors |
+| Usability | Task Completion Rate | Observed usability-test CSV | >= 80% |
+
+To capture usability evidence, download `usability_test_template.csv` from the
+quality panel, register one attempted task per row, and upload the completed file.
+The CSV must include `id_participante`, `id_tarea`, `completada`,
+`duracion_segundos`, and `claridad_1_a_5`. The dashboard calculates task completion
+only from those recorded observations.
+
+The CI workflow saves `coverage.json`, the critical Flake8 output, and
+`ci_quality_metrics.json` as a **quality-evidence** artifact for each run. This
+artifact is the source for test coverage and critical lint findings; it is not
+silently substituted by an earlier run.
+
+---
+
 ## Objectives
 
 The project aims to:
@@ -410,4 +437,3 @@ Anvitha Reddy Thummalapally
 Lakshmi Sahasra Jangoan  
 
 University of Oklahoma  
-
