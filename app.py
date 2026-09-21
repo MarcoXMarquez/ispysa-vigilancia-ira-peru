@@ -5,6 +5,7 @@ Prototipo académico con controles de calidad de datos y evidencias de validaci�
 """
 
 import sys
+from time import perf_counter
 from pathlib import Path
 import streamlit as st
 import pandas as pd
@@ -282,11 +283,14 @@ def get_services():
 
 
 data_service, model_service = get_services()
+runtime_measurements_ms = {}
+data_load_started = perf_counter()
 annual_data = data_service.get_annual_measures()
+runtime_measurements_ms["data_load_validation_ms"] = (perf_counter() - data_load_started) * 1000
 if annual_data.empty:
     st.error("No es posible calcular indicadores: el archivo anual falta o no supera la validación.")
     st.info("Revisa los resultados de validación y restaura o corrige el archivo indicado. Después recarga la página.")
-    render_quality_panel(data_service, model_service)
+    render_quality_panel(data_service, model_service, measurements_ms=runtime_measurements_ms)
     st.stop()
 
 
@@ -345,6 +349,7 @@ with st.sidebar:
 # ==============================================================================
 # CARGA Y FILTRADO DE DATOS EPIDEMIOLÓGICOS
 # ==============================================================================
+filter_started = perf_counter()
 is_national = selected_scope == "Nacional (Consolidado)"
 
 if is_national:
@@ -371,6 +376,7 @@ selection_context = {
     "ano_indicadores": latest_year, "ambito_pronosticos": "Nacional",
     "formula_tasa": "Casos del grupo / población total × 100000",
 }
+runtime_measurements_ms["filter_indicator_ms"] = (perf_counter() - filter_started) * 1000
 
 # ==============================================================================
 # 1. ENCABEZADO INSTITUCIONAL
@@ -868,7 +874,7 @@ with tab_prediction:
 # PESTAÑA V: AUDITORÍA DE CALIDAD Y ESTÁNDARES ISO 9241
 # ------------------------------------------------------------------------------
 with tab_quality:
-    render_quality_panel(data_service, model_service, selection_context)
+    render_quality_panel(data_service, model_service, selection_context, runtime_measurements_ms)
 
 # ==============================================================================
 # 6. PANEL INFERIOR: ESPECIFICACIONES METODOLÓGICAS Y GLOSARIO OFICIAL

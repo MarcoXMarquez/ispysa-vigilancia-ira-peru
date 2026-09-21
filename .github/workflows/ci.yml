@@ -2,9 +2,10 @@ name: Pipeline de Integración y Despliegue Continuo (CI/CD Quality Gate)
 
 on:
   push:
-    branches: [ main, master, external ]
   pull_request:
-    branches: [ main, master, external ]
+
+permissions:
+  contents: read
 
 jobs:
   # ============================================================================
@@ -30,8 +31,14 @@ jobs:
 
       - name: Auditoría de Errores Fatales de Sintaxis
         run: |
-          # Falla si existen errores de sintaxis, variables no definidas o imports rotos
-          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          # Conserva el resultado como evidencia y falla si existen errores críticos.
+          mkdir -p quality-results
+          set +e
+          flake8 . --select=E9,F63,F7,F82 --format='%(code)s:%(path)s:%(row)d:%(col)d:%(text)s' > quality-results/flake8_critical.txt
+          flake8_exit=$?
+          set -e
+          cat quality-results/flake8_critical.txt
+          test "$flake8_exit" -eq 0
 
       - name: Auditoría de Estilo y Complejidad Ciclomática (Warning)
         run: |
@@ -59,7 +66,7 @@ jobs:
       - name: Instalar Dependencias del Sistema y Testing
         run: |
           python -m pip install --upgrade pip
-          pip install numpy pandas openpyxl plotly streamlit scikit-learn coverage
+          pip install -r requirements.txt
 
       - name: Ejecutar Pruebas Unitarias con Medición de Cobertura
         run: |
@@ -69,6 +76,39 @@ jobs:
         run: |
           # Falla el pipeline si la cobertura del código es inferior al 80%
           python -m coverage report --fail-under=80 -m
+
+      - name: Generar evidencia de calidad del pipeline
+        run: |
+          mkdir -p quality-results
+          python -m coverage json -o quality-results/coverage.json
+          if [ ! -f quality-results/flake8_critical.txt ]; then
+            flake8 . --select=E9,F63,F7,F82 --format='%(code)s:%(path)s:%(row)d:%(col)d:%(text)s' > quality-results/flake8_critical.txt
+          fi
+          python scripts/build_quality_evidence.py \
+            --coverage quality-results/coverage.json \
+            --flake8-critical quality-results/flake8_critical.txt \
+            --output quality-results/ci_quality_metrics.json \
+            --commit "$GITHUB_SHA"
+          cat quality-results/ci_quality_metrics.json
+
+      - name: Publicar resumen de calidad
+        run: |
+          python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          report = json.load(open("quality-results/ci_quality_metrics.json", encoding="utf-8"))
+          print("## ISO/IEC 25000 quality evidence")
+          print("| Indicator | Value | Target |")
+          print("|---|---:|---:|")
+          for item in report["metrics"]:
+              print(f"| {item['id']} | {item['value']} {item['unit']} | {item['target']} |")
+          PY
+
+      - name: Conservar evidencia de calidad
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-evidence-${{ github.sha }}
+          path: quality-results/
+          if-no-files-found: error
 
   # ============================================================================
   # JOB 3: DESPLIEGUE CONTINUO (CD) A LA NUBE (RENDER)
