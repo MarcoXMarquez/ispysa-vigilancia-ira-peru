@@ -6,16 +6,15 @@ Cobertura objetivo: >= 80% (Estándar ISO/IEC 25010 y TDD)
 
 import unittest
 from pathlib import Path
-import pandas as pd
-import numpy as np
 import sys
+import pandas as pd
 
 # Agregar src al path
 ROOT_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT_DIR))
 
-from src.services.data_service import EpidemiologyDataService
-from src.services.model_service import EpidemiologyModelService
+from src.services.data_service import EpidemiologyDataService  # noqa: E402
+from src.services.model_service import EpidemiologyModelService  # noqa: E402
 
 
 class TestEpidemiologyServices(unittest.TestCase):
@@ -36,7 +35,7 @@ class TestEpidemiologyServices(unittest.TestCase):
         self.assertIn("cases_men5", df.columns)
         self.assertIn("cases_60mas", df.columns)
         self.assertIn("population", df.columns)
-        
+
         # Verificar rango de años (2000 a 2023)
         self.assertEqual(df["year"].min(), 2000)
         self.assertEqual(df["year"].max(), 2023)

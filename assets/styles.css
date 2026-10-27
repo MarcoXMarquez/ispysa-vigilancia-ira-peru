@@ -1,0 +1,408 @@
+/* ==========================================================================
+   DESIGN TOKENS - SISTEMA DE DISEÑO CLÍNICO ISPySA-PNEUMONIA (ISO 9241-12)
+   ========================================================================== */
+:root {
+  /* Espaciado: rejilla matemática de 8 px (4 px solo microajustes) */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 16px;
+  --sp-4: 24px;
+  --sp-5: 32px;
+  --sp-6: 48px;
+
+  /* Forma y bordes */
+  --radius: 6px;
+  --radius-sm: 4px;
+  --radius-lg: 8px;
+  --border: 1px solid var(--c-border);
+
+  /* Superficies y texto (Contraste verificado WCAG AA >= 4.5:1) */
+  --c-canvas:  #F7F8FA;
+  --c-surface: #FFFFFF;
+  --c-border:  #E3E6EB;
+  --c-border-strong: #C9CFD8;
+  --c-text:    #1B2430;   /* 15.9:1 sobre blanco */
+  --c-muted:   #5B6675;   /* 5.9:1 sobre blanco  */
+
+  /* Marca institucional sobria */
+  --c-primary: #1F4E79;   /* 8.6:1 sobre blanco */
+  --c-primary-weak: #E8EFF6;
+
+  /* Estados clínicos y de calidad (Texto, fondo suave y borde) */
+  --c-ok-text:   #1E6B3A;
+  --c-ok-bg:     #EEF7F1;
+  --c-ok-bd:     #B9DCC5;
+
+  --c-info-text: #1F4E79;
+  --c-info-bg:   #EAF1F8;
+  --c-info-bd:   #BCD2E8;
+
+  --c-warn-text: #8A5300;
+  --c-warn-bg:   #FFF5E0;
+  --c-warn-bd:   #F0D29A;
+
+  --c-high-text: #9A3412;
+  --c-high-bg:   #FDEEE7;
+  --c-high-bd:   #F2C2A8;
+
+  --c-bad-text:  #A32018;
+  --c-bad-bg:    #FDECEA;
+  --c-bad-bd:    #F1B8B3;
+
+  /* Paleta Categórica Okabe-Ito para Gráficos y Bandas (src/ui/theme.py) */
+  --c-chart-men5:     #0072B2;
+  --c-chart-60mas:    #D55E00;
+  --c-chart-neutral:  #5B6675;
+  --c-chart-grid:     #E3E6EB;
+  --c-chart-text:     #1B2430;
+  --c-band-success:   rgba(31,78,121,0.10);
+  --c-band-safety:    rgba(30,107,58,0.10);
+  --c-band-alarm:     rgba(138,83,0,0.12);
+  --c-band-epidemic:  rgba(163,32,24,0.10);
+
+  /* Tipografía */
+  --font-sans: "Inter", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --fs-xs: 0.75rem;   /* 12px */
+  --fs-sm: 0.875rem;  /* 14px */
+  --fs-md: 1rem;      /* 16px */
+  --fs-lg: 1.25rem;   /* 20px */
+  --fs-xl: 1.5rem;    /* 24px */
+  --fs-2xl: 2rem;     /* 32px: solo valores de KPI */
+  --lh-tight: 1.25;
+  --lh-body: 1.5;
+}
+
+/* ==========================================================================
+   REGLAS BASE Y LAYOUT
+   ========================================================================== */
+html,
+body,
+#stMain,
+[data-testid="stMain"],
+.stMain,
+.stApp,
+[data-testid="stAppViewContainer"],
+section.main,
+.main {
+  scroll-behavior: smooth !important;
+}
+
+html, body, [class*="css"] {
+  font-family: var(--font-sans);
+  color: var(--c-text);
+}
+
+/* Transiciones de entrada suave (Slide-in y Fade-in) */
+@keyframes slideInUp {
+  0% {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInSidebar {
+  0% {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeInSoft {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.stMainBlockContainer,
+.block-container,
+[data-testid="stMain"] .block-container,
+#stMain .block-container {
+  max-width: 1280px;
+  padding-top: var(--sp-3);
+  padding-bottom: var(--sp-6);
+  animation: slideInUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: transform, opacity;
+}
+
+[data-testid="stSidebar"],
+[data-testid="stSidebar"] > div:first-child {
+  animation: slideInSidebar 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: transform, opacity;
+}
+
+[data-baseweb="tab-panel"] {
+  animation: fadeInSoft 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html,
+  body,
+  #stMain,
+  [data-testid="stMain"],
+  .stMain,
+  .stApp,
+  [data-testid="stAppViewContainer"],
+  section.main,
+  .main {
+    scroll-behavior: auto !important;
+  }
+  .stMainBlockContainer,
+  .block-container,
+  [data-testid="stSidebar"],
+  [data-testid="stSidebar"] > div:first-child,
+  [data-baseweb="tab-panel"] {
+    animation: none !important;
+  }
+}
+
+h1 {
+  font-size: var(--fs-xl);
+  font-weight: 600;
+  line-height: var(--lh-tight);
+  color: var(--c-text);
+  margin: 0 0 var(--sp-1);
+}
+
+h2, h3 {
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  line-height: var(--lh-tight);
+  color: var(--c-text);
+  margin: var(--sp-4) 0 var(--sp-2);
+}
+
+[data-testid="stCaptionContainer"],
+[data-testid="stCaptionContainer"] p,
+[data-testid="stSidebar"] p,
+[class*="stCaptionContainer"] p,
+.caption,
+small {
+  color: var(--c-muted) !important;
+  font-size: var(--fs-sm) !important;
+  line-height: var(--lh-body) !important;
+}
+
+/* Ocultar adornos de interfaz innecesarios */
+#MainMenu, footer, [data-testid="stDecoration"] {
+  visibility: hidden;
+  height: 0;
+}
+
+/* Foco visible estricto (Accesibilidad WCAG 2.1) */
+:focus-visible {
+  outline: 2px solid var(--c-primary);
+  outline-offset: 2px;
+}
+
+/* Respeto a preferencias de reducción de movimiento */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Pestañas: estilo limpio con indicador de marca */
+button[role="tab"] {
+  font-size: var(--fs-sm) !important;
+  font-weight: 500 !important;
+  color: var(--c-muted) !important;
+  padding: var(--sp-2) var(--sp-3) !important;
+}
+
+button[role="tab"][aria-selected="true"] {
+  color: var(--c-primary) !important;
+  font-weight: 600 !important;
+}
+
+/* Tablas y cifras: alineación tabular */
+[data-testid="stDataFrame"], table {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ==========================================================================
+   COMPONENTES CLÍNICOS E INSTITUCIONALES
+   ========================================================================== */
+/* Cabecera de Página */
+.page-header {
+  padding-bottom: var(--sp-2);
+  border-bottom: var(--border);
+  margin-bottom: var(--sp-3);
+}
+
+.page-header h1 {
+  margin: 0 0 var(--sp-1) 0;
+}
+
+.page-header .context {
+  color: var(--c-muted);
+  font-size: var(--fs-sm);
+  line-height: 1.4;
+}
+
+/* Tarjetas KPI */
+.kpi-card {
+  background: var(--c-surface);
+  border: var(--border);
+  border-radius: var(--radius);
+  padding: var(--sp-3);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.kpi-label {
+  color: var(--c-muted);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  margin-bottom: var(--sp-1);
+}
+
+.kpi-value {
+  font-size: var(--fs-2xl);
+  font-weight: 600;
+  line-height: var(--lh-tight);
+  font-variant-numeric: tabular-nums;
+  color: var(--c-text);
+  margin: var(--sp-1) 0;
+}
+
+.kpi-delta {
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  margin-bottom: var(--sp-1);
+}
+
+.kpi-delta--up {
+  color: var(--c-bad-text); /* En salud: incremento de casos = negativo */
+}
+
+.kpi-delta--down {
+  color: var(--c-ok-text);  /* Reducción de casos = positivo */
+}
+
+.kpi-delta--flat {
+  color: var(--c-muted);
+}
+
+.kpi-subtext {
+  color: var(--c-muted);
+  font-size: var(--fs-xs);
+}
+
+/* Banner de Estado Clínico (Canal Endémico Bortman OPS) */
+.status-banner {
+  border: var(--border);
+  border-left-width: 4px;
+  border-radius: var(--radius);
+  padding: var(--sp-3);
+  font-size: var(--fs-sm);
+  margin-bottom: var(--sp-3);
+  line-height: var(--lh-body);
+}
+
+.status-banner .title {
+  font-weight: 600;
+  font-size: var(--fs-md);
+  margin-bottom: var(--sp-1);
+}
+
+.status-banner--ok {
+  background: var(--c-ok-bg);
+  border-color: var(--c-ok-bd);
+  color: var(--c-ok-text);
+  border-left-color: var(--c-ok-text);
+}
+
+.status-banner--info {
+  background: var(--c-info-bg);
+  border-color: var(--c-info-bd);
+  color: var(--c-info-text);
+  border-left-color: var(--c-info-text);
+}
+
+.status-banner--warn {
+  background: var(--c-warn-bg);
+  border-color: var(--c-warn-bd);
+  color: var(--c-warn-text);
+  border-left-color: var(--c-warn-text);
+}
+
+.status-banner--bad {
+  background: var(--c-bad-bg);
+  border-color: var(--c-bad-bd);
+  color: var(--c-bad-text);
+  border-left-color: var(--c-bad-text);
+}
+
+/* Grilla de Estadísticas */
+.stat-grid {
+  display: grid;
+  gap: var(--sp-3);
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  margin: var(--sp-2) 0;
+}
+
+.stat {
+  border: var(--border);
+  border-radius: var(--radius);
+  padding: var(--sp-3);
+  background: var(--c-surface);
+}
+
+.stat .label {
+  color: var(--c-muted);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+}
+
+.stat .value {
+  font-size: var(--fs-xl);
+  font-weight: 600;
+  color: var(--c-text);
+  font-variant-numeric: tabular-nums;
+  margin-top: var(--sp-1);
+}
+
+/* Badges de Estado */
+.badge {
+  display: inline-block;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: var(--border);
+  line-height: 1.4;
+}
+
+.badge--ok {
+  background: var(--c-ok-bg);
+  color: var(--c-ok-text);
+  border-color: var(--c-ok-bd);
+}
+
+.badge--warn {
+  background: var(--c-warn-bg);
+  color: var(--c-warn-text);
+  border-color: var(--c-warn-bd);
+}
+
+.badge--bad {
+  background: var(--c-bad-bg);
+  color: var(--c-bad-text);
+  border-color: var(--c-bad-bd);
+}

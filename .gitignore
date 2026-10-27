@@ -17,6 +17,7 @@ dist/
 
 # Executables and OS artifacts
 *.bat
+!tp-6/*.bat
 *.exe
 *.cmd
 .DS_Store
@@ -36,6 +37,8 @@ Thumbs.db
 
 # Logs
 *.log
+logs/
+*.jsonl
 
 # Coverage
 .coverage

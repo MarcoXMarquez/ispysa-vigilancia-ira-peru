@@ -1,0 +1,4 @@
+# Dependencias de desarrollo, auditoría y control de calidad (ISO 25010 / ISO 5055)
+coverage>=7.4.0
+flake8>=7.0.0
+radon>=6.0.1

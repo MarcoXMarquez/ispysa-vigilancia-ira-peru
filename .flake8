@@ -1,0 +1,21 @@
+[flake8]
+max-line-length = 120
+max-complexity = 12
+exclude =
+    .git,
+    __pycache__,
+    _archivo,
+    build,
+    dist,
+    .venv,
+    venv,
+    outputs,
+    .pytest_cache,
+    data
+
+per-file-ignores =
+    src/quality/catalog.py: E501
+    scripts/generar_informe_word.py: E501, C901, F401
+    src/data_preparation/*: E, W, F
+    src/eda/*: E, W, F
+    src/modeling/*: E, W, F

@@ -2,14 +2,13 @@ name: Pipeline de Integración y Despliegue Continuo (CI/CD Quality Gate)
 
 on:
   push:
+    branches: [ main, master, external, feat/* ]
   pull_request:
-
-permissions:
-  contents: read
+    branches: [ main, master, external ]
 
 jobs:
   # ============================================================================
-  # JOB 1: AUDITORÍA ESTÁTICA Y DE SEGURIDAD DEL CÓDIGO
+  # JOB 1: AUDITORÍA ESTÁTICA Y DE SEGURIDAD DEL CÓDIGO (ISO 5055)
   # ============================================================================
   auditoria-codigo:
     name: 1. Auditoría Estática de Código (Flake8 & Standards)
@@ -27,29 +26,23 @@ jobs:
       - name: Instalar Herramientas de Auditoría
         run: |
           python -m pip install --upgrade pip
-          pip install flake8
+          pip install flake8 radon
 
       - name: Auditoría de Errores Fatales de Sintaxis
         run: |
-          # Conserva el resultado como evidencia y falla si existen errores críticos.
-          mkdir -p quality-results
-          set +e
-          flake8 . --select=E9,F63,F7,F82 --format='%(code)s:%(path)s:%(row)d:%(col)d:%(text)s' > quality-results/flake8_critical.txt
-          flake8_exit=$?
-          set -e
-          cat quality-results/flake8_critical.txt
-          test "$flake8_exit" -eq 0
+          # Falla si existen errores de sintaxis, variables no definidas o imports rotos
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
 
-      - name: Auditoría de Estilo y Complejidad Ciclomática (Warning)
+      - name: Quality Gate de Estilo y Complejidad Ciclomática Estricta (ISO 5055)
         run: |
-          # Reglas de estilo PEP8 e ISO 25010 (complejidad max 12, lineas max 120)
-          flake8 . --count --exit-zero --max-complexity=12 --max-line-length=120 --statistics
+          # Reglas PEP8 e ISO 25010/5055: complejidad ciclomática <= 12, líneas <= 120
+          flake8 . --count --max-complexity=12 --max-line-length=120 --statistics
 
   # ============================================================================
-  # JOB 2: PRUEBAS UNITARIAS Y QUALITY GATE DE COBERTURA (>= 80%)
+  # JOB 2: PRUEBAS UNITARIAS, COBERTURA (>= 80%) Y AUDITORÍA GQM (ISO 25010)
   # ============================================================================
   pruebas-unitarias:
-    name: 2. Pruebas Unitarias y Cobertura (Min 80%)
+    name: 2. Pruebas Unitarias, Cobertura (>= 80%) y Auditoría GQM
     runs-on: ubuntu-latest
     needs: auditoria-codigo
 
@@ -66,49 +59,30 @@ jobs:
       - name: Instalar Dependencias del Sistema y Testing
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r requirements.txt -r requirements-dev.txt
 
-      - name: Ejecutar Pruebas Unitarias con Medición de Cobertura
+      - name: Ejecutar Pruebas Unitarias con Medición de Cobertura en src/
         run: |
-          python -m coverage run --source=src/services -m unittest discover -s tests -p "test_*.py" -v
+          python -m coverage run --source=src -m unittest discover -s tests -p "test_*.py" -v
+          python -m coverage json -o coverage.json
 
-      - name: Verificar Umbral Mínimo de Cobertura (80% Requerido)
+      - name: Verificar Quality Gate de Cobertura (Min 80% en todo src/)
         run: |
-          # Falla el pipeline si la cobertura del código es inferior al 80%
           python -m coverage report --fail-under=80 -m
 
-      - name: Generar evidencia de calidad del pipeline
+      - name: Ejecutar Auditoría Cuantitativa de Calidad ISO/IEC 25010 (GQM)
         run: |
-          mkdir -p quality-results
-          python -m coverage json -o quality-results/coverage.json
-          if [ ! -f quality-results/flake8_critical.txt ]; then
-            flake8 . --select=E9,F63,F7,F82 --format='%(code)s:%(path)s:%(row)d:%(col)d:%(text)s' > quality-results/flake8_critical.txt
-          fi
-          python scripts/build_quality_evidence.py \
-            --coverage quality-results/coverage.json \
-            --flake8-critical quality-results/flake8_critical.txt \
-            --output quality-results/ci_quality_metrics.json \
-            --commit "$GITHUB_SHA"
-          cat quality-results/ci_quality_metrics.json
+          python scripts/run_quality_audit.py
 
-      - name: Publicar resumen de calidad
-        run: |
-          python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
-          import json
-          report = json.load(open("quality-results/ci_quality_metrics.json", encoding="utf-8"))
-          print("## ISO/IEC 25000 quality evidence")
-          print("| Indicator | Value | Target |")
-          print("|---|---:|---:|")
-          for item in report["metrics"]:
-              print(f"| {item['id']} | {item['value']} {item['unit']} | {item['target']} |")
-          PY
-
-      - name: Conservar evidencia de calidad
+      - name: Subir Informes de Calidad y Cobertura como Artefactos de CI
         uses: actions/upload-artifact@v4
         with:
-          name: quality-evidence-${{ github.sha }}
-          path: quality-results/
-          if-no-files-found: error
+          name: reportes-calidad-iso25010
+          path: |
+            coverage.json
+            data/quality/last_audit.json
+            outputs/quality/test_run.json
+          retention-days: 14
 
   # ============================================================================
   # JOB 3: DESPLIEGUE CONTINUO (CD) A LA NUBE (RENDER)
@@ -120,7 +94,7 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
     steps:
-      - name: Disparar Despliegue Automático tras Quality Gate
+      - name: Disparar Despliegue Automático tras Quality Gate Aprobado
         env:
           RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
         run: |

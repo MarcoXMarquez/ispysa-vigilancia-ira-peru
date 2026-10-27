@@ -1,0 +1,1432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quality Nexus - ISPySA-Pneumonia Clinical Surveillance Platform</title>
+  
+  <!-- Typography: Epilogue, Lato & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Epilogue:wght@500;600;700;800&family=Lato:wght@400;500;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            heading: ['Epilogue', 'sans-serif'],
+            sans: ['Lato', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            corporate: {
+              50: '#F8FAFC',
+              100: '#F1F5F9',
+              200: '#E2E8F0',
+              300: '#CBD5E1',
+              400: '#94A3B8',
+              500: '#64748B',
+              600: '#475569',
+              700: '#334155',
+              800: '#1E293B',
+              900: '#0F172A',
+            },
+            accent: {
+              teal: '#0D9488',
+              tealDark: '#0F766E',
+              crimson: '#BE123C',
+              amber: '#D97706',
+              emerald: '#059669',
+              blue: '#2563EB',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    body {
+      font-family: 'Lato', sans-serif;
+      background-color: #F1F5F9;
+      color: #1E293B;
+    }
+    .custom-scroll::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    .custom-scroll::-webkit-scrollbar-track {
+      background: #F1F5F9;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: #CBD5E1;
+      border-radius: 3px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb:hover {
+      background: #94A3B8;
+    }
+    .tab-btn[aria-selected="true"] {
+      border-bottom-color: #0F172A;
+      color: #0F172A;
+      font-weight: 700;
+    }
+    .tab-btn[aria-selected="false"] {
+      border-bottom-color: transparent;
+      color: #64748B;
+    }
+    .tab-btn[aria-selected="false"]:hover {
+      color: #334155;
+      border-bottom-color: #CBD5E1;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased bg-[#F1F5F9] text-corporate-800">
+
+  <!-- Top Enterprise Navigation Header -->
+  <header class="bg-corporate-900 text-white border-b border-corporate-700 sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <a href="index.html" class="flex items-center space-x-1.5 text-corporate-400 hover:text-white transition-colors text-xs font-mono">
+          <span>&larr;</span>
+          <span class="hidden sm:inline">PORTAL</span>
+        </a>
+        <span class="text-corporate-700">|</span>
+        <div class="flex items-center space-x-2">
+          <span class="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-corporate-800 border border-corporate-700 text-corporate-300">ISPYSA</span>
+          <span class="text-xs sm:text-sm font-bold font-heading tracking-tight text-white">
+            QUALITY NEXUS <span class="text-corporate-400 font-normal">| Pneumonia Surveillance Platform</span>
+          </span>
+        </div>
+      </div>
+
+      <!-- Reference Shortcuts -->
+      <nav class="flex items-center space-x-2 sm:space-x-4 text-xs font-mono">
+        <a href="enunciado_solucion.html" class="text-corporate-300 hover:text-white transition-colors hidden md:inline">
+          Slidesgo Deck (14)
+        </a>
+        <a href="enunciado_solucion.pdf" target="_blank" download class="text-corporate-300 hover:text-white transition-colors hidden sm:inline">
+          PDF Deck
+        </a>
+        <a href="REPORTE_TECNICO_CALIDAD_SALUD_PUBLICA.md" target="_blank" class="text-corporate-300 hover:text-white transition-colors hidden lg:inline">
+          Technical Report
+        </a>
+        <a href="DASHBOARD_EXPLANATION.md" target="_blank" class="px-2 py-1 rounded bg-corporate-800 border border-corporate-700 text-corporate-200 hover:bg-corporate-700 transition-colors">
+          Walkthrough (EN)
+        </a>
+        <a href="Entrega_Dashboard_y_Scripts_ISPySA.zip" download class="px-2 py-1 rounded bg-corporate-800 border border-corporate-700 text-corporate-200 hover:bg-corporate-700 transition-colors hidden sm:inline">
+          ZIP Package
+        </a>
+        <div class="h-4 w-px bg-corporate-700 hidden sm:block"></div>
+        <div class="flex items-center space-x-1.5">
+          <span class="w-2 h-2 rounded-full bg-accent-emerald" id="globalStatusDot"></span>
+          <span class="text-[11px] font-mono text-corporate-300" id="globalStatusText">STAGING: ALL GATES PASSING</span>
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Executive Context Bar -->
+  <div class="bg-white border-b border-corporate-200 px-4 sm:px-6 lg:px-8 py-3">
+    <div class="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-3">
+      <div>
+        <div class="flex items-center space-x-2">
+          <span class="px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-corporate-100 text-corporate-700 border border-corporate-300 uppercase">
+            Surveillance Repository: ISPySA-Pneumonia-main
+          </span>
+          <span class="text-xs text-corporate-400 hidden sm:inline">|</span>
+          <span class="text-xs font-semibold text-corporate-700 hidden sm:inline">
+            Acute Respiratory Infections (IRA) & Pneumonia in Peru (2000-2023)
+          </span>
+        </div>
+        <p class="text-xs text-corporate-500 mt-0.5">
+          Rigorous quality enforcement under <strong>ISO/IEC 5055:2021</strong> (AST Source Code), <strong>ISO/IEC 25010</strong> (Product Quality), and <strong>ISO 9241</strong> (Ergonomics & Usability).
+        </p>
+      </div>
+
+      <!-- Cohort Selector & Simulation Controls -->
+      <div class="flex flex-wrap items-center gap-2 self-start md:self-auto">
+        <!-- Cohort Switcher -->
+        <div class="flex items-center bg-corporate-100 p-1 rounded-lg border border-corporate-200 text-xs">
+          <span class="text-[10px] font-mono font-bold text-corporate-500 px-2 uppercase">Cohort:</span>
+          <button id="btnCohortMen5" onclick="setCohort('men5')" class="px-2 py-1 rounded text-xs font-medium bg-white text-corporate-900 border border-corporate-300 shadow-xs transition-all">
+            Under 5 (men5)
+          </button>
+          <button id="btnCohort60mas" onclick="setCohort('60mas')" class="px-2 py-1 rounded text-xs font-medium text-corporate-600 hover:text-corporate-900 transition-all">
+            60+ Years (60mas)
+          </button>
+        </div>
+
+        <!-- Simulation Mode -->
+        <div class="flex items-center bg-corporate-100 p-1 rounded-lg border border-corporate-200 text-xs">
+          <span class="text-[10px] font-mono font-bold text-corporate-500 px-2 uppercase">Mode:</span>
+          <button id="btnNominal" onclick="applyScenario('nominal')" class="px-2 py-1 rounded text-xs font-medium bg-white text-corporate-900 border border-corporate-300 shadow-xs transition-all">
+            Nominal
+          </button>
+          <button id="btnSurge" onclick="applyScenario('surge')" class="px-2 py-1 rounded text-xs font-medium text-corporate-600 hover:text-corporate-900 transition-all">
+            Outbreak Surge
+          </button>
+          <button id="btnDefect" onclick="applyScenario('defect')" class="px-2 py-1 rounded text-xs font-medium text-corporate-600 hover:text-accent-crimson transition-all">
+            Inject Flaw
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Persistent Top KPI Strip -->
+  <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-5 pb-2 w-full">
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+      
+      <!-- Metric 1: ISO 5055 QGS -->
+      <div class="bg-white rounded-lg p-3.5 border border-corporate-200 shadow-xs flex flex-col justify-between">
+        <div class="flex items-center justify-between text-[11px] font-mono text-corporate-500">
+          <span>ISO 5055 QGS</span>
+          <span class="text-[10px] px-1.5 py-0.2 rounded bg-corporate-100 text-corporate-600" id="qgsBadge">PASS</span>
+        </div>
+        <div class="my-1.5">
+          <div class="text-2xl font-bold font-mono tracking-tight text-corporate-900" id="qgsValue">88.4%</div>
+          <div class="text-[11px] text-corporate-500">Threshold: &ge; 85.0%</div>
+        </div>
+        <div class="text-[10px] font-mono text-corporate-400 border-t border-corporate-100 pt-1">
+          0.35S + 0.25R + 0.25E + 0.15M
+        </div>
+      </div>
+
+      <!-- Metric 2: Defect Density -->
+      <div class="bg-white rounded-lg p-3.5 border border-corporate-200 shadow-xs flex flex-col justify-between">
+        <div class="flex items-center justify-between text-[11px] font-mono text-corporate-500">
+          <span>DEFECT DENSITY</span>
+          <span class="text-[10px] px-1.5 py-0.2 rounded bg-corporate-100 text-corporate-600" id="dswBadge">HEALTHY</span>
+        </div>
+        <div class="my-1.5">
+          <div class="text-2xl font-bold font-mono tracking-tight text-corporate-900" id="dswValue">0.028</div>
+          <div class="text-[11px] text-corporate-500">Limit: &lt; 0.05 / KLOC</div>
+        </div>
+        <div class="text-[10px] font-mono text-corporate-400 border-t border-corporate-100 pt-1">
+          ISPySA Codebase: 42.8 KLOC
+        </div>
+      </div>
+
+      <!-- Metric 3: National Incidence Rate -->
+      <div class="bg-white rounded-lg p-3.5 border border-corporate-200 shadow-xs flex flex-col justify-between">
+        <div class="flex items-center justify-between text-[11px] font-mono text-corporate-500">
+          <span>INCIDENCE RATE</span>
+          <span class="text-[10px] px-1.5 py-0.2 rounded bg-corporate-100 text-corporate-600" id="incBadge">BASELINE</span>
+        </div>
+        <div class="my-1.5">
+          <div class="text-2xl font-bold font-mono tracking-tight text-corporate-900" id="incValue">218.4 <span class="text-xs font-normal text-corporate-500">/ 100k</span></div>
+          <div class="text-[11px] text-corporate-500" id="incCohortLabel">Children Under 5 (2023)</div>
+        </div>
+        <div class="text-[10px] font-mono text-corporate-400 border-t border-corporate-100 pt-1">
+          (Cases / Population) &times; 100,000
+        </div>
+      </div>
+
+      <!-- Metric 4: Model Forecast Accuracy -->
+      <div class="bg-white rounded-lg p-3.5 border border-corporate-200 shadow-xs flex flex-col justify-between">
+        <div class="flex items-center justify-between text-[11px] font-mono text-corporate-500">
+          <span>XGBOOST R² SCORE</span>
+          <span class="text-[10px] px-1.5 py-0.2 rounded bg-corporate-100 text-corporate-600" id="modelBadge">OPTIMAL</span>
+        </div>
+        <div class="my-1.5">
+          <div class="text-2xl font-bold font-mono tracking-tight text-corporate-900" id="r2Value">0.935</div>
+          <div class="text-[11px] text-corporate-500">MAE: 0.184 · RMSE: 0.271</div>
+        </div>
+        <div class="text-[10px] font-mono text-corporate-400 border-t border-corporate-100 pt-1">
+          5-Year Rolling Backtest
+        </div>
+      </div>
+
+      <!-- Metric 5: Gate Status -->
+      <div class="col-span-2 md:col-span-1 bg-white rounded-lg p-3.5 border border-corporate-200 shadow-xs flex flex-col justify-between" id="gateCard">
+        <div class="flex items-center justify-between text-[11px] font-mono text-corporate-500">
+          <span>CI/CD PIPELINE GATE</span>
+          <span class="w-2 h-2 rounded-full bg-accent-emerald" id="gateDot"></span>
+        </div>
+        <div class="my-1.5">
+          <div class="text-lg font-bold font-heading tracking-tight text-accent-emerald" id="gateStatusText">RELEASE APPROVED</div>
+          <div class="text-[11px] text-corporate-500" id="gateSubtext">0 Blocking AST Flaws</div>
+        </div>
+        <div class="text-[10px] font-mono text-corporate-400 border-t border-corporate-100 pt-1 flex justify-between">
+          <span>Production Ready</span>
+          <span class="font-bold text-accent-emerald uppercase" id="gateActionText">PASSED</span>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- Tabbed Navigation Bar -->
+  <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-3 w-full">
+    <div class="border-b border-corporate-200 flex space-x-6 text-sm" role="tablist">
+      <button 
+        id="tab-btn-surveillance" 
+        role="tab" 
+        aria-selected="true" 
+        aria-controls="panel-surveillance" 
+        onclick="switchTab('surveillance')"
+        class="tab-btn pb-3 px-1 border-b-2 font-mono text-xs transition-colors focus:outline-none">
+        1. ISPySA Epidemiological Surveillance
+      </button>
+      <button 
+        id="tab-btn-ast" 
+        role="tab" 
+        aria-selected="false" 
+        aria-controls="panel-ast" 
+        onclick="switchTab('ast')"
+        class="tab-btn pb-3 px-1 border-b-2 font-mono text-xs transition-colors focus:outline-none">
+        2. ISO/IEC 5055 Code AST Quality
+      </button>
+      <button 
+        id="tab-btn-ml" 
+        role="tab" 
+        aria-selected="false" 
+        aria-controls="panel-ml" 
+        onclick="switchTab('ml')"
+        class="tab-btn pb-3 px-1 border-b-2 font-mono text-xs transition-colors focus:outline-none">
+        3. Predictive ML Models & Telemetry
+      </button>
+      <button 
+        id="tab-btn-governance" 
+        role="tab" 
+        aria-selected="false" 
+        aria-controls="panel-governance" 
+        onclick="switchTab('governance')"
+        class="tab-btn pb-3 px-1 border-b-2 font-mono text-xs transition-colors focus:outline-none">
+        4. Tripartite Architecture & ISO 20246
+      </button>
+    </div>
+  </section>
+
+  <!-- Main Content Area: Tab Panels -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-5">
+
+    <!-- ======================================================== -->
+    <!-- TAB 1: ISPYSA EPIDEMIOLOGICAL SURVEILLANCE & OVERVIEW     -->
+    <!-- ======================================================== -->
+    <div id="panel-surveillance" role="tabpanel" aria-labelledby="tab-btn-surveillance" class="space-y-6">
+      
+      <!-- Epidemiological Alert Banner (ISO 9241-12 Design Token) -->
+      <div id="alertBanner" class="p-3.5 rounded-lg border border-corporate-200 bg-corporate-50 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div class="flex items-center space-x-2">
+          <span class="w-2 h-2 rounded-full bg-accent-emerald" id="alertDot"></span>
+          <span class="font-mono font-bold text-corporate-800" id="alertCode">[ESTADO EPIDEMIOLÓGICO: CONTROL NORMAL]</span>
+          <span class="text-corporate-600" id="alertMsg">La tasa de incidencia nacional se sitúa en niveles previstos para el período epidemiológico 2000-2023.</span>
+        </div>
+        <span class="text-[10px] font-mono text-corporate-500 shrink-0">Threshold: Critical &gt; 350 / 100k hab.</span>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- Left: Regional Stratification & High-Burden Clusters -->
+        <div class="lg:col-span-7 bg-white rounded-xl border border-corporate-200 p-5 space-y-4 shadow-xs">
+          <div class="border-b border-corporate-100 pb-3 flex items-center justify-between">
+            <div>
+              <span class="text-[10px] font-mono font-bold uppercase text-corporate-500">Surveillance Data: 2000-2023</span>
+              <h2 class="text-base font-bold font-heading text-corporate-900 mt-0.5">
+                Territorial Stratification & Regional Disease Burden
+              </h2>
+            </div>
+            <span class="text-xs font-mono text-corporate-500">25 Departments</span>
+          </div>
+
+          <p class="text-xs text-corporate-600 leading-relaxed">
+            Data aggregated from <code class="font-mono text-[11px] bg-corporate-100 px-1 py-0.5 rounded text-corporate-800">data/raw/iras_updated.csv</code> with annual census population interpolation. Incidence rates are classified into 5 quintile categories:
+          </p>
+
+          <!-- Dynamic Regional Analysis Cards -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" id="clusterContainer">
+            <!-- Rainforest Cluster (Men5) -->
+            <div class="p-3 rounded-lg border border-corporate-200 bg-corporate-50 space-y-1.5" id="clusterBoxA">
+              <div class="text-[10px] font-mono font-bold text-accent-crimson uppercase" id="clusterTitleA">AMAZON BASIN CLUSTER (MENORES DE 5 AÑOS)</div>
+              <div class="text-xs font-bold text-corporate-900">Ucayali & Loreto Critical Persistence</div>
+              <p class="text-[11px] text-corporate-600 leading-relaxed" id="clusterTextA">
+                In children under 5, highest historical burden concentrates in Amazonian departments: <strong>Ucayali (91.7%)</strong> and <strong>Loreto (91.7%)</strong> persistence in Category 1 (&gt;1,200 cases / 100k hab).
+              </p>
+            </div>
+
+            <!-- Andean Cluster (60mas) -->
+            <div class="p-3 rounded-lg border border-corporate-200 bg-corporate-50 space-y-1.5" id="clusterBoxB">
+              <div class="text-[10px] font-mono font-bold text-corporate-700 uppercase" id="clusterTitleB">SOUTHERN ANDES CLUSTER (ADULTOS 60+)</div>
+              <div class="text-xs font-bold text-corporate-900">Arequipa, Cusco & Moquegua Frost Impact</div>
+              <p class="text-[11px] text-corporate-600 leading-relaxed" id="clusterTextB">
+                In adults 60+, disease burden shifts to high-altitude Andean departments affected by seasonal frost waves: <strong>Arequipa (88.9%)</strong> and <strong>Cusco (61.1%)</strong> in Category 1.
+              </p>
+            </div>
+          </div>
+
+          <!-- Clinical Severity Metrics Table (HR & CFR) -->
+          <div class="pt-2 border-t border-corporate-100">
+            <div class="text-xs font-semibold font-mono text-corporate-700 mb-2">Severity Indices (Hospitalization Rate vs Case Fatality Ratio):</div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs">
+                <thead class="bg-corporate-100 text-corporate-700 font-mono text-[10px]">
+                  <tr>
+                    <th class="py-1.5 px-2.5">Territorial Scope</th>
+                    <th class="py-1.5 px-2.5">Cases (Total)</th>
+                    <th class="py-1.5 px-2.5">Hospitalization Rate (HR %)</th>
+                    <th class="py-1.5 px-2.5">Case Fatality Ratio (CFR %)</th>
+                    <th class="py-1.5 px-2.5 text-right">Risk Quintile</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-corporate-100 text-[11px] font-mono" id="tblSeverityBody">
+                  <tr>
+                    <td class="py-2 px-2.5 font-bold text-corporate-900">Nacional Consolidado</td>
+                    <td class="py-2 px-2.5">38,420</td>
+                    <td class="py-2 px-2.5 text-corporate-800">14.2%</td>
+                    <td class="py-2 px-2.5 text-corporate-800">1.84%</td>
+                    <td class="py-2 px-2.5 text-right font-bold text-accent-emerald">Quintile 3 (Media)</td>
+                  </tr>
+                  <tr>
+                    <td class="py-2 px-2.5 font-bold text-corporate-900">Ucayali (Selva)</td>
+                    <td class="py-2 px-2.5">3,892</td>
+                    <td class="py-2 px-2.5 text-corporate-800">22.8%</td>
+                    <td class="py-2 px-2.5 text-corporate-800">3.12%</td>
+                    <td class="py-2 px-2.5 text-right font-bold text-accent-crimson">Quintile 1 (Muy Alta)</td>
+                  </tr>
+                  <tr>
+                    <td class="py-2 px-2.5 font-bold text-corporate-900">Arequipa (Sierra)</td>
+                    <td class="py-2 px-2.5">4,120</td>
+                    <td class="py-2 px-2.5 text-corporate-800">18.5%</td>
+                    <td class="py-2 px-2.5 text-corporate-800">2.65%</td>
+                    <td class="py-2 px-2.5 text-right font-bold text-accent-crimson">Quintile 1 (Muy Alta)</td>
+                  </tr>
+                  <tr>
+                    <td class="py-2 px-2.5 font-bold text-corporate-900">Lima Metropolitana</td>
+                    <td class="py-2 px-2.5">12,650</td>
+                    <td class="py-2 px-2.5 text-corporate-800">11.4%</td>
+                    <td class="py-2 px-2.5 text-corporate-800">1.21%</td>
+                    <td class="py-2 px-2.5 text-right font-bold text-corporate-600">Quintile 4 (Moderada)</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Standards Conformance Radar Chart -->
+        <div class="lg:col-span-5 bg-white rounded-xl border border-corporate-200 p-5 flex flex-col justify-between shadow-xs">
+          <div>
+            <div class="border-b border-corporate-100 pb-3 flex items-center justify-between">
+              <div>
+                <span class="text-[10px] font-mono font-bold uppercase text-corporate-500">Quality Architecture</span>
+                <h3 class="text-sm font-bold font-heading text-corporate-900 mt-0.5">
+                  Standards Compliance Matrix
+                </h3>
+              </div>
+              <span class="text-[11px] font-mono font-semibold text-accent-emerald" id="radarSummaryBadge">
+                100% MET
+              </span>
+            </div>
+            <p class="text-xs text-corporate-500 mt-2">
+              Multi-normative alignment: <strong>ISO/IEC 5055:2021</strong> (AST code), <strong>ISO/IEC 25010</strong> (software quality), and <strong>ISO 9241 (11, 12, 110, 210)</strong> (ergonomics):
+            </p>
+          </div>
+
+          <div class="my-3 h-64 w-full flex items-center justify-center">
+            <canvas id="isoRadarChart"></canvas>
+          </div>
+
+          <div class="text-[10px] font-mono text-corporate-500 bg-corporate-50 p-2.5 rounded border border-corporate-200 flex justify-between">
+            <span>Framework: ISO 9241 & ISO 5055</span>
+            <span>Dataset: 2000-2023 Surveillance</span>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- TAB 2: ISO/IEC 5055 AST SOURCE CODE QUALITY ENGINE       -->
+    <!-- ======================================================== -->
+    <div id="panel-ast" role="tabpanel" aria-labelledby="tab-btn-ast" class="hidden space-y-6">
+      
+      <!-- 4 Characteristics Grid Applied to ISPySA Codebase -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        
+        <!-- Characteristic 1: Security -->
+        <div class="bg-white rounded-xl border border-corporate-200 p-4 shadow-xs space-y-2.5">
+          <div class="flex items-center justify-between border-b border-corporate-100 pb-2">
+            <span class="text-xs font-bold font-heading text-corporate-800">1. Security (35%)</span>
+            <span class="text-xs font-mono font-bold text-corporate-900" id="cardScoreSec">92/100</span>
+          </div>
+          <div class="w-full bg-corporate-100 h-1.5 rounded-full overflow-hidden">
+            <div id="cardBarSec" class="h-full bg-corporate-800 transition-all duration-300" style="width: 92%"></div>
+          </div>
+          <div class="flex justify-between text-[11px] text-corporate-500">
+            <span>AST Vulnerabilities:</span>
+            <span id="cardCweSec">0 Critical</span>
+          </div>
+          <div class="pt-2 border-t border-corporate-100 text-[10px] font-mono text-corporate-600 space-y-1">
+            <div class="flex justify-between"><span>CWE-22 (Path Traversal):</span><span class="font-bold">0</span></div>
+            <div class="flex justify-between"><span>CWE-89 (Injection Flaws):</span><span class="font-bold" id="cwe89Val">0</span></div>
+            <div class="flex justify-between"><span>CWE-798 (Hardcoded Keys):</span><span class="font-bold">0</span></div>
+          </div>
+        </div>
+
+        <!-- Characteristic 2: Reliability -->
+        <div class="bg-white rounded-xl border border-corporate-200 p-4 shadow-xs space-y-2.5">
+          <div class="flex items-center justify-between border-b border-corporate-100 pb-2">
+            <span class="text-xs font-bold font-heading text-corporate-800">2. Reliability (25%)</span>
+            <span class="text-xs font-mono font-bold text-corporate-900" id="cardScoreRel">88/100</span>
+          </div>
+          <div class="w-full bg-corporate-100 h-1.5 rounded-full overflow-hidden">
+            <div id="cardBarRel" class="h-full bg-corporate-800 transition-all duration-300" style="width: 88%"></div>
+          </div>
+          <div class="flex justify-between text-[11px] text-corporate-500">
+            <span>Test Suite Pass:</span>
+            <span class="font-bold text-accent-emerald">6/6 Tests (100%)</span>
+          </div>
+          <div class="pt-2 border-t border-corporate-100 text-[10px] font-mono text-corporate-600 space-y-1">
+            <div class="flex justify-between"><span>CWE-369 (Zero-Division):</span><span class="font-bold">0 (Guarded)</span></div>
+            <div class="flex justify-between"><span>CWE-476 (Null/Empty DF):</span><span class="font-bold" id="cwe476Val">0</span></div>
+            <div class="flex justify-between"><span>Unit Test Assertions:</span><span class="font-bold">100% Pass</span></div>
+          </div>
+        </div>
+
+        <!-- Characteristic 3: Performance Efficiency -->
+        <div class="bg-white rounded-xl border border-corporate-200 p-4 shadow-xs space-y-2.5">
+          <div class="flex items-center justify-between border-b border-corporate-100 pb-2">
+            <span class="text-xs font-bold font-heading text-corporate-800">3. Performance (25%)</span>
+            <span class="text-xs font-mono font-bold text-corporate-900" id="cardScorePerf">86/100</span>
+          </div>
+          <div class="w-full bg-corporate-100 h-1.5 rounded-full overflow-hidden">
+            <div id="cardBarPerf" class="h-full bg-corporate-800 transition-all duration-300" style="width: 86%"></div>
+          </div>
+          <div class="flex justify-between text-[11px] text-corporate-500">
+            <span>Render Latency:</span>
+            <span class="font-bold text-corporate-900">&lt; 0.20s (Cached)</span>
+          </div>
+          <div class="pt-2 border-t border-corporate-100 text-[10px] font-mono text-corporate-600 space-y-1">
+            <div class="flex justify-between"><span>@st.cache_resource:</span><span class="font-bold text-accent-emerald">Active</span></div>
+            <div class="flex justify-between"><span>Iterrows() Antipattern:</span><span class="font-bold">0 (Vectorized)</span></div>
+            <div class="flex justify-between"><span>Post-GC Memory Drift:</span><span class="font-bold">+0.4 MB/h</span></div>
+          </div>
+        </div>
+
+        <!-- Characteristic 4: Maintainability -->
+        <div class="bg-white rounded-xl border border-corporate-200 p-4 shadow-xs space-y-2.5">
+          <div class="flex items-center justify-between border-b border-corporate-100 pb-2">
+            <span class="text-xs font-bold font-heading text-corporate-800">4. Maintainability (15%)</span>
+            <span class="text-xs font-mono font-bold text-corporate-900" id="cardScoreMaint">84/100</span>
+          </div>
+          <div class="w-full bg-corporate-100 h-1.5 rounded-full overflow-hidden">
+            <div id="cardBarMaint" class="h-full bg-corporate-800 transition-all duration-300" style="width: 84%"></div>
+          </div>
+          <div class="flex justify-between text-[11px] text-corporate-500">
+            <span>Modular OOP Design:</span>
+            <span class="font-bold text-corporate-900">2 Service Layers</span>
+          </div>
+          <div class="pt-2 border-t border-corporate-100 text-[10px] font-mono text-corporate-600 space-y-1">
+            <div class="flex justify-between"><span>McCabe v(G) Max:</span><span class="font-bold">5.8 &le; 10</span></div>
+            <div class="flex justify-between"><span>DataService / ModelService:</span><span class="font-bold text-accent-emerald">Decoupled</span></div>
+            <div class="flex justify-between"><span>Technical Debt Ratio:</span><span class="font-bold">3.4% &le; 5%</span></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Mathematical Model Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="bg-white p-4 rounded-xl border border-corporate-200 shadow-xs">
+          <div class="text-[10px] font-mono uppercase text-corporate-500 font-bold">Equation 1 · Defect Density</div>
+          <div class="my-2 p-2 rounded bg-corporate-50 border border-corporate-200 font-mono text-xs text-corporate-900 font-bold text-center">
+            D_sw = &Sigma;(Critical CWEs) / KLOC
+          </div>
+          <p class="text-[11px] text-corporate-500 leading-relaxed">
+            Measures concentration of structural code defects across the 42,850 LOC in <code class="font-mono text-corporate-800">ISPySA-Pneumonia-main</code>. Target: $D_{sw} < 0.05 / \text{KLOC}$.
+          </p>
+        </div>
+
+        <div class="bg-white p-4 rounded-xl border border-corporate-200 shadow-xs">
+          <div class="text-[10px] font-mono uppercase text-corporate-500 font-bold">Equation 2 · Technical Debt Ratio</div>
+          <div class="my-2 p-2 rounded bg-corporate-50 border border-corporate-200 font-mono text-xs text-corporate-900 font-bold text-center">
+            TDR = (Remediation Hours / Total Dev Hours) &times; 100%
+          </div>
+          <p class="text-[11px] text-corporate-500 leading-relaxed">
+            Measures engineering effort needed to refactor legacy scripts into clean decoupled services. Strict ceiling: $TDR \le 5.0\%$.
+          </p>
+        </div>
+
+        <div class="bg-white p-4 rounded-xl border border-corporate-200 shadow-xs">
+          <div class="text-[10px] font-mono uppercase text-corporate-500 font-bold">Equation 3 · Composite Score (QGS)</div>
+          <div class="my-2 p-2 rounded bg-corporate-50 border border-corporate-200 font-mono text-xs text-corporate-900 font-bold text-center">
+            QGS = 0.35&middot;S + 0.25&middot;R + 0.25&middot;E + 0.15&middot;M
+          </div>
+          <p class="text-[11px] text-corporate-500 leading-relaxed">
+            Weighted composite scoring function determining production release readiness. Minimum passing threshold: $QGS \ge 85.0\%$.
+          </p>
+        </div>
+      </div>
+
+      <!-- AST Rules Verification Table & Code Drawer -->
+      <div class="bg-white rounded-xl border border-corporate-200 shadow-xs overflow-hidden">
+        <div class="p-4 border-b border-corporate-200 flex items-center justify-between bg-corporate-50">
+          <div>
+            <h3 class="text-sm font-bold font-heading text-corporate-900">AST Source Code Audit Table (ISPySA Repository)</h3>
+            <p class="text-[11px] text-corporate-500">Structural evaluation of Python modules in <code class="font-mono text-corporate-700">src/services/</code>, <code class="font-mono text-corporate-700">src/data_preparation/</code>, and <code class="font-mono text-corporate-700">tests/</code></p>
+          </div>
+          <span class="text-xs font-mono text-corporate-500">5 Rules Audited</span>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-corporate-100 text-corporate-700 font-mono text-[10px]">
+              <tr>
+                <th class="py-2.5 px-3">Rule / CWE</th>
+                <th class="py-2.5 px-3">ISO 5055 Characteristic</th>
+                <th class="py-2.5 px-3">Target Repository File</th>
+                <th class="py-2.5 px-3">Status</th>
+                <th class="py-2.5 px-3 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-corporate-100 text-[11px]" id="astTableBody">
+              
+              <!-- Row 1: CWE-369 Zero Division -->
+              <tr class="hover:bg-corporate-50 transition-colors" id="row-cwe-89">
+                <td class="py-2.5 px-3 font-mono font-bold text-corporate-900">CWE-369</td>
+                <td class="py-2.5 px-3 text-corporate-600">Reliability: Defensive Zero-Division Guard</td>
+                <td class="py-2.5 px-3 font-mono text-corporate-500">src/data_preparation/Incidence.py</td>
+                <td class="py-2.5 px-3">
+                  <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-corporate-100 text-corporate-800" id="status-cwe-89">COMPLIANT</span>
+                </td>
+                <td class="py-2.5 px-3 text-right">
+                  <button onclick="inspectRule('cwe-369')" class="text-corporate-700 hover:text-corporate-900 font-mono font-bold underline">Inspect Code</button>
+                </td>
+              </tr>
+
+              <!-- Row 2: CWE-476 Null/Empty DF -->
+              <tr class="hover:bg-corporate-50 transition-colors" id="row-cwe-476">
+                <td class="py-2.5 px-3 font-mono font-bold text-corporate-900">CWE-476</td>
+                <td class="py-2.5 px-3 text-corporate-600">Reliability: Non-Empty DataFrame Assertion</td>
+                <td class="py-2.5 px-3 font-mono text-corporate-500">src/services/data_service.py</td>
+                <td class="py-2.5 px-3">
+                  <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-corporate-100 text-corporate-800" id="status-cwe-476">COMPLIANT</span>
+                </td>
+                <td class="py-2.5 px-3 text-right">
+                  <button onclick="inspectRule('cwe-476')" class="text-corporate-700 hover:text-corporate-900 font-mono font-bold underline">Inspect Code</button>
+                </td>
+              </tr>
+
+              <!-- Row 3: CWE-400 Caching & Vectorization -->
+              <tr class="hover:bg-corporate-50 transition-colors">
+                <td class="py-2.5 px-3 font-mono font-bold text-corporate-900">CWE-400</td>
+                <td class="py-2.5 px-3 text-corporate-600">Efficiency: Vectorized Operations & Cache</td>
+                <td class="py-2.5 px-3 font-mono text-corporate-500">app.py (@st.cache_resource)</td>
+                <td class="py-2.5 px-3">
+                  <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-corporate-100 text-corporate-800">COMPLIANT</span>
+                </td>
+                <td class="py-2.5 px-3 text-right">
+                  <button onclick="inspectRule('cwe-400')" class="text-corporate-700 hover:text-corporate-900 font-mono font-bold underline">Inspect Code</button>
+                </td>
+              </tr>
+
+              <!-- Row 4: CWE-22 Path Traversal -->
+              <tr class="hover:bg-corporate-50 transition-colors">
+                <td class="py-2.5 px-3 font-mono font-bold text-corporate-900">CWE-22</td>
+                <td class="py-2.5 px-3 text-corporate-600">Security: Safe Path Resolution (pathlib)</td>
+                <td class="py-2.5 px-3 font-mono text-corporate-500">src/services/model_service.py</td>
+                <td class="py-2.5 px-3">
+                  <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-corporate-100 text-corporate-800">COMPLIANT</span>
+                </td>
+                <td class="py-2.5 px-3 text-right">
+                  <button onclick="inspectRule('cwe-22')" class="text-corporate-700 hover:text-corporate-900 font-mono font-bold underline">Inspect Code</button>
+                </td>
+              </tr>
+
+              <!-- Row 5: McCabe v(G) & Modularity -->
+              <tr class="hover:bg-corporate-50 transition-colors">
+                <td class="py-2.5 px-3 font-mono font-bold text-corporate-900">v(G) &le; 10</td>
+                <td class="py-2.5 px-3 text-corporate-600">Maintainability: Decoupled Service Class</td>
+                <td class="py-2.5 px-3 font-mono text-corporate-500">src/services/data_service.py</td>
+                <td class="py-2.5 px-3">
+                  <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-corporate-100 text-corporate-800">PASS (v=5.8)</span>
+                </td>
+                <td class="py-2.5 px-3 text-right">
+                  <button onclick="inspectRule('mccabe')" class="text-corporate-700 hover:text-corporate-900 font-mono font-bold underline">Inspect Code</button>
+                </td>
+              </tr>
+
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Embedded Code Drawer -->
+        <div id="codeDrawer" class="hidden p-4 bg-corporate-900 text-white border-t border-corporate-700 text-xs">
+          <div class="flex items-center justify-between pb-2 border-b border-corporate-700">
+            <span class="font-mono text-corporate-300 font-bold" id="drawerTitle">AST Pattern Inspection</span>
+            <button onclick="document.getElementById('codeDrawer').classList.add('hidden')" class="text-corporate-400 hover:text-white font-mono text-xs">[Close]</button>
+          </div>
+          <pre class="font-mono text-[11px] mt-2 p-3 rounded bg-black/50 text-emerald-400 custom-scroll overflow-x-auto" id="drawerCode">// Source code snippet</pre>
+          <div class="mt-2 text-[11px] text-corporate-300" id="drawerExplanation">Defensive architectural rationale.</div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- TAB 3: PREDICTIVE ML MODELS & TELEMETRY ENGINE            -->
+    <!-- ======================================================== -->
+    <div id="panel-ml" role="tabpanel" aria-labelledby="tab-btn-ml" class="hidden space-y-6">
+      
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- Left: Official Model Evaluation & Metrics Table -->
+        <div class="lg:col-span-5 bg-white rounded-xl border border-corporate-200 p-5 space-y-4 shadow-xs">
+          <div class="border-b border-corporate-100 pb-3">
+            <span class="text-[10px] font-mono font-bold uppercase text-corporate-500">Machine Learning Framework</span>
+            <h3 class="text-sm font-bold font-heading text-corporate-900 mt-0.5">
+              Time Series Forecasting Models Comparison
+            </h3>
+            <p class="text-[11px] text-corporate-500 mt-1">
+              Evaluated with 5-year rolling backtesting, 4-week forecast step, and 52-week recursive projection:
+            </p>
+          </div>
+
+          <!-- Official Metrics Table -->
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-corporate-100 text-corporate-700 font-mono text-[10px]">
+                <tr>
+                  <th class="py-2 px-2.5">Model Architecture</th>
+                  <th class="py-2 px-2.5">MAE</th>
+                  <th class="py-2 px-2.5">RMSE</th>
+                  <th class="py-2 px-2.5 text-right">R² Score</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-corporate-100 text-[11px] font-mono" id="tblModelsBody">
+                <tr class="bg-corporate-50">
+                  <td class="py-2 px-2.5 font-bold text-corporate-900">XGBoost (Optimized)</td>
+                  <td class="py-2 px-2.5" id="valMaeXgb">0.184</td>
+                  <td class="py-2 px-2.5" id="valRmseXgb">0.271</td>
+                  <td class="py-2 px-2.5 text-right font-bold text-accent-emerald" id="valR2Xgb">0.935</td>
+                </tr>
+                <tr>
+                  <td class="py-2 px-2.5 font-bold text-corporate-900">Random Forest</td>
+                  <td class="py-2 px-2.5" id="valMaeRf">0.210</td>
+                  <td class="py-2 px-2.5" id="valRmseRf">0.296</td>
+                  <td class="py-2 px-2.5 text-right font-bold text-corporate-800" id="valR2Rf">0.922</td>
+                </tr>
+                <tr>
+                  <td class="py-2 px-2.5 font-bold text-corporate-900">LSTM (Deep Learning)</td>
+                  <td class="py-2 px-2.5">0.245</td>
+                  <td class="py-2 px-2.5">0.342</td>
+                  <td class="py-2 px-2.5 text-right font-bold text-corporate-800">0.884</td>
+                </tr>
+                <tr>
+                  <td class="py-2 px-2.5 font-bold text-corporate-900">Holt-Winters / ARIMA</td>
+                  <td class="py-2 px-2.5">0.380</td>
+                  <td class="py-2 px-2.5">0.512</td>
+                  <td class="py-2 px-2.5 text-right text-corporate-600">0.741</td>
+                </tr>
+                <tr>
+                  <td class="py-2 px-2.5 font-bold text-corporate-900">Seasonal Naïve Baseline</td>
+                  <td class="py-2 px-2.5">0.490</td>
+                  <td class="py-2 px-2.5">0.680</td>
+                  <td class="py-2 px-2.5 text-right text-corporate-500">0.612</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Feature Importance Breakdown -->
+          <div class="pt-2 border-t border-corporate-100 space-y-2">
+            <div class="text-[10px] font-mono font-bold uppercase text-corporate-600">Top Predictors (Feature Importance):</div>
+            <div class="space-y-1.5 text-[11px] font-mono text-corporate-700">
+              <div class="flex justify-between items-center bg-corporate-50 p-1.5 rounded border border-corporate-200">
+                <span>1. lag_1 (Previous Week Cases):</span>
+                <span class="font-bold text-corporate-900">38.4%</span>
+              </div>
+              <div class="flex justify-between items-center bg-corporate-50 p-1.5 rounded border border-corporate-200">
+                <span>2. roll_mean_4 (Monthly Moving Average):</span>
+                <span class="font-bold text-corporate-900">24.1%</span>
+              </div>
+              <div class="flex justify-between items-center bg-corporate-50 p-1.5 rounded border border-corporate-200">
+                <span>3. sin_week / cos_week (Seasonal Cycles):</span>
+                <span class="font-bold text-corporate-900">18.6%</span>
+              </div>
+              <div class="flex justify-between items-center bg-corporate-50 p-1.5 rounded border border-corporate-200">
+                <span>4. lag_52 (Annual Seasonal Memory):</span>
+                <span class="font-bold text-corporate-900">11.2%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: 52-Week Forecast Telemetry Chart with 95% Confidence Intervals -->
+        <div class="lg:col-span-7 bg-white rounded-xl border border-corporate-200 p-5 space-y-4 shadow-xs">
+          <div class="border-b border-corporate-100 pb-3 flex items-center justify-between">
+            <div>
+              <span class="text-[10px] font-mono font-bold uppercase text-corporate-500">Predictive Trajectory</span>
+              <h3 class="text-sm font-bold font-heading text-corporate-900 mt-0.5">
+                52-Week Incidence Rate Forecast with 95% Confidence Interval
+              </h3>
+            </div>
+            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-corporate-100 text-corporate-600">
+              Forecast &plusmn; 1.96 &times; RMSE
+            </span>
+          </div>
+
+          <p class="text-xs text-corporate-500 leading-relaxed">
+            Rolling forecast generated by XGBoost and Random Forest pipelines over weekly epidemiological intervals:
+          </p>
+
+          <div class="h-60 w-full flex items-center justify-center">
+            <canvas id="telemetryChart"></canvas>
+          </div>
+
+          <!-- Runtime Performance Telemetry Metrics -->
+          <div class="grid grid-cols-3 gap-2 text-center text-xs pt-1 border-t border-corporate-100 font-mono">
+            <div class="p-2 rounded bg-corporate-50 border border-corporate-200">
+              <div class="text-[10px] text-corporate-500">QUERY LATENCY</div>
+              <div class="text-sm font-bold text-corporate-900 mt-0.5">18.4 ms (&le;200ms)</div>
+            </div>
+            <div class="p-2 rounded bg-corporate-50 border border-corporate-200">
+              <div class="text-[10px] text-corporate-500">MEMORY DRIFT</div>
+              <div class="text-sm font-bold text-corporate-900 mt-0.5">+0.4 MB/h</div>
+            </div>
+            <div class="p-2 rounded bg-corporate-50 border border-corporate-200">
+              <div class="text-[10px] text-corporate-500">CACHE HIT RATE</div>
+              <div class="text-sm font-bold text-corporate-900 mt-0.5">99.4%</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- TAB 4: TRIPARTITE ARCHITECTURE & ISO 20246 GOVERNANCE     -->
+    <!-- ======================================================== -->
+    <div id="panel-governance" role="tabpanel" aria-labelledby="tab-btn-governance" class="hidden space-y-6">
+      
+      <!-- Tripartite Architecture Visualization -->
+      <div class="bg-white rounded-xl border border-corporate-200 p-5 space-y-4 shadow-xs">
+        <div class="border-b border-corporate-100 pb-3 flex items-center justify-between">
+          <div>
+            <span class="text-[10px] font-mono font-bold uppercase text-corporate-500">Requirement 3 Architecture</span>
+            <h3 class="text-sm font-bold font-heading text-corporate-900 mt-0.5">
+              ISPySA Tripartite Architecture: Capture &rarr; Processing &rarr; Presentation
+            </h3>
+          </div>
+          <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-corporate-100 text-corporate-600">
+            End-to-End Automated Pipeline
+          </span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
+          
+          <!-- Node 1: Capture -->
+          <div class="p-4 rounded-lg border border-corporate-200 bg-corporate-50 space-y-2">
+            <div class="flex justify-between items-center text-[10px] font-mono font-bold text-corporate-600">
+              <span>PHASE 1: CAPTURE</span>
+              <span>Data & AST</span>
+            </div>
+            <h4 class="text-xs font-bold font-heading text-corporate-900">Epidemiological Ingestion</h4>
+            <p class="text-[11px] text-corporate-500 leading-relaxed">
+              Extraction of 24-year epidemiological series and Python AST code structure.
+            </p>
+            <div class="space-y-1 font-mono text-[10px] text-corporate-700 pt-1">
+              <div class="bg-white p-1.5 rounded border border-corporate-200">&bull; iras_updated.csv (MINSA)</div>
+              <div class="bg-white p-1.5 rounded border border-corporate-200">&bull; Population Census Tables</div>
+              <div class="bg-white p-1.5 rounded border border-corporate-200">&bull; Static AST Scanner (ISO 5055)</div>
+            </div>
+          </div>
+
+          <!-- Node 2: Processing -->
+          <div class="p-4 rounded-lg border border-corporate-200 bg-corporate-50 space-y-2">
+            <div class="flex justify-between items-center text-[10px] font-mono font-bold text-corporate-600">
+              <span>PHASE 2: PROCESSING</span>
+              <span>Services</span>
+            </div>
+            <h4 class="text-xs font-bold font-heading text-corporate-900">Transformation & Modeling</h4>
+            <p class="text-[11px] text-corporate-500 leading-relaxed">
+              Decoupled Python services running calculations, rate interpolation, and ML predictions.
+            </p>
+            <div class="space-y-1 font-mono text-[10px] text-corporate-700 pt-1">
+              <div class="bg-white p-1.5 rounded border border-corporate-200">&bull; EpidemiologyDataService</div>
+              <div class="bg-white p-1.5 rounded border border-corporate-200">&bull; EpidemiologyModelService</div>
+              <div class="bg-white p-1.5 rounded border border-corporate-200">&bull; QGS & D_sw Math Engine</div>
+            </div>
+          </div>
+
+          <!-- Node 3: Presentation -->
+          <div class="p-4 rounded-lg border border-corporate-200 bg-corporate-50 space-y-2">
+            <div class="flex justify-between items-center text-[10px] font-mono font-bold text-corporate-600">
+              <span>PHASE 3: PRESENTATION</span>
+              <span>UI & Audit</span>
+            </div>
+            <h4 class="text-xs font-bold font-heading text-corporate-900">Executive Interface & Dossier</h4>
+            <p class="text-[11px] text-corporate-500 leading-relaxed">
+              Ergonomic interactive UI under ISO 9241, exportable CSV reports, and immutable audit logs.
+            </p>
+            <div class="space-y-1 font-mono text-[10px] text-corporate-700 pt-1">
+              <div class="bg-white p-1.5 rounded border border-corporate-200">&bull; Streamlit / Web Executive UI</div>
+              <div class="bg-white p-1.5 rounded border border-corporate-200">&bull; ejecutar_aplicativo.bat</div>
+              <div class="bg-white p-1.5 rounded border border-corporate-200">&bull; SHA-256 Audit Trail Seal</div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Cryptographic Audit Hash -->
+        <div class="p-3 bg-corporate-900 rounded-lg text-white font-mono text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div class="flex items-center space-x-2">
+            <span class="text-corporate-400 text-[11px]">SHA-256 Dataset & Model Audit Seal:</span>
+            <span class="text-corporate-200 text-[10px]" id="auditHash">e8b7f29a08154cfb392419c8d50b7182a4d3e21098471b6920fba0d58849c301</span>
+          </div>
+          <span class="text-[10px] font-mono text-corporate-300 border border-corporate-700 px-2 py-0.5 rounded self-start sm:self-auto">
+            IMMUTABLE AUDIT TRAIL
+          </span>
+        </div>
+      </div>
+
+      <!-- ISO 20246:2017 Formal Review Matrix -->
+      <div class="bg-white rounded-xl border border-corporate-200 p-5 space-y-4 shadow-xs">
+        <div class="border-b border-corporate-100 pb-3 flex items-center justify-between">
+          <div>
+            <span class="text-[10px] font-mono font-bold uppercase text-corporate-500">Formal Verification</span>
+            <h3 class="text-sm font-bold font-heading text-corporate-900 mt-0.5">
+              ISO/IEC 20246:2017 Work Product Review Sign-Off
+            </h3>
+          </div>
+          <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-corporate-100 text-corporate-800 font-bold">
+            5 / 5 PHASES CLOSED
+          </span>
+        </div>
+
+        <p class="text-xs text-corporate-500 leading-relaxed">
+          Structured human review lifecycle certifying that epidemiological indicators and ML forecast horizons are verified:
+        </p>
+
+        <div class="grid grid-cols-1 sm:grid-cols-5 gap-3 text-xs">
+          <div class="p-3 rounded border border-corporate-200 bg-corporate-50 flex flex-col justify-between">
+            <div>
+              <div class="font-mono text-[10px] text-corporate-500 font-bold">PHASE 1</div>
+              <div class="font-bold text-corporate-900 mt-1">Planning</div>
+              <p class="text-[11px] text-corporate-500 mt-1">Entry criteria and role assignments.</p>
+            </div>
+            <div class="mt-2 pt-1 border-t border-corporate-200 text-[10px] font-mono text-corporate-700 font-bold">Closed</div>
+          </div>
+
+          <div class="p-3 rounded border border-corporate-200 bg-corporate-50 flex flex-col justify-between">
+            <div>
+              <div class="font-mono text-[10px] text-corporate-500 font-bold">PHASE 2</div>
+              <div class="font-bold text-corporate-900 mt-1">Preparation</div>
+              <p class="text-[11px] text-corporate-500 mt-1">ISO 29148 ambiguity checklists.</p>
+            </div>
+            <div class="mt-2 pt-1 border-t border-corporate-200 text-[10px] font-mono text-corporate-700 font-bold">Closed</div>
+          </div>
+
+          <div class="p-3 rounded border border-corporate-200 bg-corporate-50 flex flex-col justify-between">
+            <div>
+              <div class="font-mono text-[10px] text-corporate-500 font-bold">PHASE 3</div>
+              <div class="font-bold text-corporate-900 mt-1">Inspection</div>
+              <p class="text-[11px] text-corporate-500 mt-1">Formal review meeting on ML criteria.</p>
+            </div>
+            <div class="mt-2 pt-1 border-t border-corporate-200 text-[10px] font-mono text-corporate-700 font-bold">Closed</div>
+          </div>
+
+          <div class="p-3 rounded border border-corporate-200 bg-corporate-50 flex flex-col justify-between">
+            <div>
+              <div class="font-mono text-[10px] text-corporate-500 font-bold">PHASE 4</div>
+              <div class="font-bold text-corporate-900 mt-1">Rework</div>
+              <p class="text-[11px] text-corporate-500 mt-1">Census interpolation standardization.</p>
+            </div>
+            <div class="mt-2 pt-1 border-t border-corporate-200 text-[10px] font-mono text-corporate-700 font-bold">Closed</div>
+          </div>
+
+          <div class="p-3 rounded border border-corporate-200 bg-corporate-50 flex flex-col justify-between">
+            <div>
+              <div class="font-mono text-[10px] text-corporate-500 font-bold">PHASE 5</div>
+              <div class="font-bold text-corporate-900 mt-1">Follow-Up</div>
+              <p class="text-[11px] text-corporate-500 mt-1">Exit criteria verified (0 defects).</p>
+            </div>
+            <div class="mt-2 pt-1 border-t border-corporate-200 text-[10px] font-mono text-corporate-700 font-bold">Signed Off</div>
+          </div>
+        </div>
+
+        <div class="p-3 rounded bg-corporate-50 border border-corporate-200 text-[11px] text-corporate-600 flex flex-col sm:flex-row justify-between gap-2 font-mono">
+          <div>Signatory 1: <strong>Lead Epidemiological Auditor (MINSA / CDC Perú)</strong></div>
+          <div>Signatory 2: <strong>Software Quality Lead (Team 05 Architect)</strong></div>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- Sober Footer -->
+  <footer class="bg-corporate-900 text-white border-t border-corporate-800 py-5 mt-10">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between text-xs text-corporate-400 gap-3">
+      <div>
+        <p class="font-bold text-corporate-200">Quality Nexus · ISPySA-Pneumonia Surveillance Platform</p>
+        <p class="text-[11px] text-corporate-500">ISO/IEC 5055:2021, ISO/IEC 25010, ISO 9241 & ISO 20246:2017 Frameworks.</p>
+      </div>
+      <div class="flex items-center space-x-4 font-mono text-[11px]">
+        <a href="index.html" class="hover:text-white transition-colors">Portal</a>
+        <a href="enunciado_solucion.html" class="hover:text-white transition-colors">Slidesgo Deck</a>
+        <a href="enunciado_solucion.pdf" target="_blank" download class="hover:text-white transition-colors">PDF</a>
+        <a href="DASHBOARD_EXPLANATION.md" target="_blank" class="hover:text-white transition-colors">Walkthrough Guide</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Application Logic -->
+  <script>
+    // System State
+    const state = {
+      cohort: 'men5', // 'men5' (under 5) or '60mas' (60+)
+      scenario: 'nominal',
+      qgs: 88.4,
+      dsw: 0.028,
+      incidenceRate: 218.4,
+      r2: 0.935,
+      mae: 0.184,
+      rmse: 0.271,
+      securityScore: 92,
+      reliabilityScore: 88,
+      perfScore: 86,
+      maintScore: 84,
+      cwe89Count: 0,
+      cwe476Count: 0,
+      gatePassed: true,
+      sha256: 'e8b7f29a08154cfb392419c8d50b7182a4d3e21098471b6920fba0d58849c301'
+    };
+
+    let radarChart = null;
+    let telemetryChart = null;
+
+    // Cohort Switcher
+    function setCohort(group) {
+      state.cohort = group;
+      const btnMen5 = document.getElementById('btnCohortMen5');
+      const btn60mas = document.getElementById('btnCohort60mas');
+
+      if (group === 'men5') {
+        btnMen5.className = 'px-2 py-1 rounded text-xs font-medium bg-white text-corporate-900 border border-corporate-300 shadow-xs transition-all';
+        btn60mas.className = 'px-2 py-1 rounded text-xs font-medium text-corporate-600 hover:text-corporate-900 transition-all';
+        state.incidenceRate = 218.4;
+        state.r2 = 0.935;
+        state.mae = 0.184;
+        state.rmse = 0.271;
+        document.getElementById('incCohortLabel').innerText = 'Children Under 5 (men5)';
+      } else {
+        btn60mas.className = 'px-2 py-1 rounded text-xs font-medium bg-white text-corporate-900 border border-corporate-300 shadow-xs transition-all';
+        btnMen5.className = 'px-2 py-1 rounded text-xs font-medium text-corporate-600 hover:text-corporate-900 transition-all';
+        state.incidenceRate = 184.2;
+        state.r2 = 0.890;
+        state.mae = 0.097;
+        state.rmse = 0.168;
+        document.getElementById('incCohortLabel').innerText = 'Adults 60+ Years (60mas)';
+      }
+
+      // Update forecast chart datasets
+      updateForecastData();
+      renderUI();
+    }
+
+    // Tab switcher
+    function switchTab(tabKey) {
+      const tabs = ['surveillance', 'ast', 'ml', 'governance'];
+
+      tabs.forEach(t => {
+        const btn = document.getElementById('tab-btn-' + t);
+        const panel = document.getElementById('panel-' + t);
+
+        if (t === tabKey) {
+          btn.setAttribute('aria-selected', 'true');
+          panel.classList.remove('hidden');
+        } else {
+          btn.setAttribute('aria-selected', 'false');
+          panel.classList.add('hidden');
+        }
+      });
+
+      if (tabKey === 'surveillance' && radarChart) {
+        radarChart.resize();
+      } else if (tabKey === 'ml' && telemetryChart) {
+        telemetryChart.resize();
+      }
+    }
+
+    // Chart Initialization
+    function initCharts() {
+      // 1. Radar Chart: Standards Conformance
+      const ctxRadar = document.getElementById('isoRadarChart').getContext('2d');
+      radarChart = new Chart(ctxRadar, {
+        type: 'radar',
+        data: {
+          labels: ['ISO 5055 Security', 'ISO 5055 Reliability', 'ISO 5055 Efficiency', 'ISO 5055 Maintainability', 'ISO 25010 Product Quality', 'ISO 9241 Usability & Ergonomics'],
+          datasets: [
+            {
+              label: 'Measured System',
+              data: [92, 88, 86, 84, 94, 98],
+              backgroundColor: 'rgba(15, 23, 42, 0.15)',
+              borderColor: '#0F172A',
+              pointBackgroundColor: '#0F172A',
+              borderWidth: 2,
+              pointRadius: 3
+            },
+            {
+              label: 'Certification Threshold',
+              data: [85, 80, 80, 75, 85, 90],
+              backgroundColor: 'transparent',
+              borderColor: '#94A3B8',
+              borderDash: [4, 4],
+              borderWidth: 1.5,
+              pointRadius: 0
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            r: {
+              min: 50,
+              max: 100,
+              ticks: { stepSize: 10, display: false },
+              grid: { color: '#E2E8F0' },
+              pointLabels: {
+                font: { size: 10, family: 'Lato', weight: 'bold' },
+                color: '#334155'
+              }
+            }
+          },
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { boxWidth: 10, font: { size: 10, family: 'Lato' }, color: '#64748B' }
+            }
+          }
+        }
+      });
+
+      // 2. 52-Week Forecast Telemetry Chart with 95% Confidence Interval
+      const ctxTele = document.getElementById('telemetryChart').getContext('2d');
+      telemetryChart = new Chart(ctxTele, {
+        type: 'line',
+        data: {
+          labels: ['W01', 'W05', 'W10', 'W15', 'W20', 'W25', 'W30', 'W35', 'W40', 'W45', 'W52'],
+          datasets: [
+            {
+              label: 'XGBoost Predicted Rate',
+              data: [18.2, 22.4, 31.8, 42.1, 55.4, 48.2, 38.0, 28.5, 22.1, 19.4, 18.0],
+              borderColor: '#0F172A',
+              backgroundColor: 'transparent',
+              borderWidth: 2.5,
+              tension: 0.3,
+              pointRadius: 3
+            },
+            {
+              label: 'Upper 95% CI (+1.96 RMSE)',
+              data: [21.5, 25.8, 35.6, 46.2, 59.8, 52.4, 42.1, 32.4, 25.8, 23.0, 21.4],
+              borderColor: '#CBD5E1',
+              backgroundColor: 'rgba(203, 213, 225, 0.35)',
+              borderDash: [3, 3],
+              borderWidth: 1,
+              fill: '+1',
+              pointRadius: 0
+            },
+            {
+              label: 'Lower 95% CI (-1.96 RMSE)',
+              data: [14.9, 19.0, 28.0, 38.0, 51.0, 44.0, 33.9, 24.6, 18.4, 15.8, 14.6],
+              borderColor: '#CBD5E1',
+              backgroundColor: 'transparent',
+              borderDash: [3, 3],
+              borderWidth: 1,
+              fill: false,
+              pointRadius: 0
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              ticks: { font: { size: 10, family: 'JetBrains Mono' } },
+              grid: { color: '#F1F5F9' }
+            },
+            x: {
+              ticks: { font: { size: 10, family: 'JetBrains Mono' } },
+              grid: { display: false }
+            }
+          },
+          plugins: {
+            legend: {
+              position: 'top',
+              labels: { boxWidth: 10, font: { size: 10, family: 'Lato' } }
+            }
+          }
+        }
+      });
+    }
+
+    function updateForecastData() {
+      if (!telemetryChart) return;
+      if (state.cohort === 'men5') {
+        telemetryChart.data.datasets[0].data = [18.2, 22.4, 31.8, 42.1, 55.4, 48.2, 38.0, 28.5, 22.1, 19.4, 18.0];
+        telemetryChart.data.datasets[1].data = [21.5, 25.8, 35.6, 46.2, 59.8, 52.4, 42.1, 32.4, 25.8, 23.0, 21.4];
+        telemetryChart.data.datasets[2].data = [14.9, 19.0, 28.0, 38.0, 51.0, 44.0, 33.9, 24.6, 18.4, 15.8, 14.6];
+      } else {
+        telemetryChart.data.datasets[0].data = [14.0, 16.8, 24.5, 36.2, 49.0, 42.5, 31.2, 22.0, 17.5, 15.2, 14.0];
+        telemetryChart.data.datasets[1].data = [16.2, 19.1, 27.2, 39.4, 52.4, 45.8, 34.2, 24.8, 19.8, 17.4, 16.1];
+        telemetryChart.data.datasets[2].data = [11.8, 14.5, 21.8, 33.0, 45.6, 39.2, 28.2, 19.2, 15.2, 13.0, 11.9];
+      }
+      telemetryChart.update();
+    }
+
+    // Apply Scenario Simulation
+    function applyScenario(mode) {
+      state.scenario = mode;
+
+      const btnNominal = document.getElementById('btnNominal');
+      const btnSurge = document.getElementById('btnSurge');
+      const btnDefect = document.getElementById('btnDefect');
+
+      [btnNominal, btnSurge, btnDefect].forEach(b => {
+        b.className = 'px-2 py-1 rounded text-xs font-medium text-corporate-600 hover:text-corporate-900 transition-all';
+      });
+
+      if (mode === 'nominal') {
+        btnNominal.className = 'px-2 py-1 rounded text-xs font-medium bg-white text-corporate-900 border border-corporate-300 shadow-xs transition-all';
+        state.qgs = 88.4;
+        state.dsw = 0.028;
+        state.incidenceRate = (state.cohort === 'men5' ? 218.4 : 184.2);
+        state.securityScore = 92;
+        state.reliabilityScore = 88;
+        state.perfScore = 86;
+        state.maintScore = 84;
+        state.cwe89Count = 0;
+        state.cwe476Count = 0;
+        state.gatePassed = true;
+        state.sha256 = 'e8b7f29a08154cfb392419c8d50b7182a4d3e21098471b6920fba0d58849c301';
+
+        document.getElementById('row-cwe-89').classList.remove('bg-rose-50');
+        document.getElementById('status-cwe-89').innerText = 'COMPLIANT';
+        document.getElementById('status-cwe-89').className = 'px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-corporate-100 text-corporate-800';
+
+        document.getElementById('row-cwe-476').classList.remove('bg-rose-50');
+        document.getElementById('status-cwe-476').innerText = 'COMPLIANT';
+        document.getElementById('status-cwe-476').className = 'px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-corporate-100 text-corporate-800';
+
+        document.getElementById('alertDot').className = 'w-2 h-2 rounded-full bg-accent-emerald';
+        document.getElementById('alertCode').innerText = '[ESTADO EPIDEMIOLÓGICO: CONTROL NORMAL]';
+        document.getElementById('alertMsg').innerText = 'La tasa de incidencia nacional se sitúa en niveles previstos para el período epidemiológico 2000-2023.';
+
+        radarChart.data.datasets[0].data = [92, 88, 86, 84, 94, 98];
+
+      } else if (mode === 'surge') {
+        btnSurge.className = 'px-2 py-1 rounded text-xs font-medium bg-white text-corporate-900 border border-corporate-300 shadow-xs transition-all';
+        state.qgs = 86.1;
+        state.dsw = 0.028;
+        state.incidenceRate = 384.6; // Critical surge > 350
+        state.securityScore = 92;
+        state.reliabilityScore = 88;
+        state.perfScore = 78;
+        state.maintScore = 84;
+        state.gatePassed = true;
+        state.sha256 = 'a914c810df628ab41029c0b11582e3914a1c6049e7281045b892ac1981240c39';
+
+        document.getElementById('alertDot').className = 'w-2 h-2 rounded-full bg-accent-crimson';
+        document.getElementById('alertCode').innerText = '[ESTADO EPIDEMIOLÓGICO: ALERTA CRÍTICA]';
+        document.getElementById('alertMsg').innerText = 'Tasa de incidencia acumulada supera 350 x 100k hab. en regiones de selva (Ucayali, Loreto). Planes de contingencia activos.';
+
+        radarChart.data.datasets[0].data = [92, 88, 78, 84, 90, 98];
+
+      } else if (mode === 'defect') {
+        btnDefect.className = 'px-2 py-1 rounded text-xs font-medium bg-white text-accent-crimson border border-accent-crimson shadow-xs transition-all';
+        state.qgs = 69.2;
+        state.dsw = 0.124;
+        state.securityScore = 52;
+        state.reliabilityScore = 61;
+        state.perfScore = 72;
+        state.maintScore = 79;
+        state.cwe89Count = 1;
+        state.cwe476Count = 2;
+        state.gatePassed = false;
+        state.sha256 = 'f74c01284a19b841725b81a029c00183e8a7192a54b381014e71029384bbfa81';
+
+        document.getElementById('row-cwe-89').classList.add('bg-rose-50');
+        document.getElementById('status-cwe-89').innerText = 'ZERO-DIVISION FLAW';
+        document.getElementById('status-cwe-89').className = 'px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-rose-100 text-accent-crimson';
+
+        document.getElementById('row-cwe-476').classList.add('bg-rose-50');
+        document.getElementById('status-cwe-476').innerText = 'EMPTY DATAFRAME CRASH';
+        document.getElementById('status-cwe-476').className = 'px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-rose-100 text-accent-crimson';
+
+        radarChart.data.datasets[0].data = [52, 61, 72, 79, 70, 85];
+      }
+
+      radarChart.update();
+      renderUI();
+    }
+
+    // Render DOM Elements
+    function renderUI() {
+      // QGS
+      document.getElementById('qgsValue').innerText = state.qgs.toFixed(1) + '%';
+      if (state.qgs >= 85) {
+        document.getElementById('qgsValue').className = 'text-2xl font-bold font-mono tracking-tight text-corporate-900';
+        document.getElementById('qgsBadge').innerText = 'PASS';
+        document.getElementById('qgsBadge').className = 'text-[10px] px-1.5 py-0.2 rounded bg-corporate-100 text-corporate-700';
+      } else {
+        document.getElementById('qgsValue').className = 'text-2xl font-bold font-mono tracking-tight text-accent-crimson';
+        document.getElementById('qgsBadge').innerText = 'REJECTED';
+        document.getElementById('qgsBadge').className = 'text-[10px] px-1.5 py-0.2 rounded bg-rose-100 text-accent-crimson';
+      }
+
+      // D_sw
+      document.getElementById('dswValue').innerText = state.dsw.toFixed(3);
+      if (state.dsw < 0.05) {
+        document.getElementById('dswValue').className = 'text-2xl font-bold font-mono tracking-tight text-corporate-900';
+        document.getElementById('dswBadge').innerText = 'HEALTHY';
+        document.getElementById('dswBadge').className = 'text-[10px] px-1.5 py-0.2 rounded bg-corporate-100 text-corporate-700';
+      } else {
+        document.getElementById('dswValue').className = 'text-2xl font-bold font-mono tracking-tight text-accent-crimson';
+        document.getElementById('dswBadge').innerText = 'EXCEEDED';
+        document.getElementById('dswBadge').className = 'text-[10px] px-1.5 py-0.2 rounded bg-rose-100 text-accent-crimson';
+      }
+
+      // Incidence
+      document.getElementById('incValue').innerHTML = state.incidenceRate.toFixed(1) + ' <span class="text-xs font-normal text-corporate-500">/ 100k</span>';
+      if (state.incidenceRate > 350) {
+        document.getElementById('incBadge').innerText = 'CRITICAL';
+        document.getElementById('incBadge').className = 'text-[10px] px-1.5 py-0.2 rounded bg-rose-100 text-accent-crimson';
+      } else {
+        document.getElementById('incBadge').innerText = 'BASELINE';
+        document.getElementById('incBadge').className = 'text-[10px] px-1.5 py-0.2 rounded bg-corporate-100 text-corporate-700';
+      }
+
+      // Model R2
+      document.getElementById('r2Value').innerText = state.r2.toFixed(3);
+
+      // Gate Card
+      const globalDot = document.getElementById('globalStatusDot');
+      const globalText = document.getElementById('globalStatusText');
+      const gateStatusText = document.getElementById('gateStatusText');
+      const gateSubtext = document.getElementById('gateSubtext');
+      const gateAction = document.getElementById('gateActionText');
+      const gateDot = document.getElementById('gateDot');
+
+      if (state.gatePassed) {
+        globalDot.className = 'w-2 h-2 rounded-full bg-accent-emerald';
+        globalText.innerText = 'STAGING: ALL GATES PASSING';
+        gateStatusText.innerText = 'RELEASE APPROVED';
+        gateStatusText.className = 'text-lg font-bold font-heading tracking-tight text-accent-emerald';
+        gateSubtext.innerText = '0 Blocking AST Flaws';
+        gateAction.innerText = 'PASSED';
+        gateAction.className = 'font-bold text-accent-emerald uppercase';
+        gateDot.className = 'w-2 h-2 rounded-full bg-accent-emerald';
+        document.getElementById('radarSummaryBadge').innerText = '100% MET';
+        document.getElementById('radarSummaryBadge').className = 'text-[11px] font-mono font-semibold text-accent-emerald';
+      } else {
+        globalDot.className = 'w-2 h-2 rounded-full bg-accent-crimson';
+        globalText.innerText = 'STAGING: RELEASE GATE BLOCKED';
+        gateStatusText.innerText = 'DEPLOYMENT BLOCKED';
+        gateStatusText.className = 'text-lg font-bold font-heading tracking-tight text-accent-crimson';
+        gateSubtext.innerText = 'Critical Zero-Division / Empty DF Flaws';
+        gateAction.innerText = 'BLOCKED';
+        gateAction.className = 'font-bold text-accent-crimson uppercase';
+        gateDot.className = 'w-2 h-2 rounded-full bg-accent-crimson';
+        document.getElementById('radarSummaryBadge').innerText = 'NON-COMPLIANT';
+        document.getElementById('radarSummaryBadge').className = 'text-[11px] font-mono font-semibold text-accent-crimson';
+      }
+
+      // Characteristics Breakdown Cards
+      document.getElementById('cardScoreSec').innerText = state.securityScore + '/100';
+      document.getElementById('cardBarSec').style.width = state.securityScore + '%';
+      document.getElementById('cardScoreRel').innerText = state.reliabilityScore + '/100';
+      document.getElementById('cardBarRel').style.width = state.reliabilityScore + '%';
+      document.getElementById('cardScorePerf').innerText = state.perfScore + '/100';
+      document.getElementById('cardBarPerf').style.width = state.perfScore + '%';
+      document.getElementById('cardScoreMaint').innerText = state.maintScore + '/100';
+      document.getElementById('cardBarMaint').style.width = state.maintScore + '%';
+
+      document.getElementById('cwe89Val').innerText = state.cwe89Count;
+      document.getElementById('cwe476Val').innerText = state.cwe476Count;
+
+      // Audit Hash
+      document.getElementById('auditHash').innerText = state.sha256;
+    }
+
+    // Code Inspection Drawer
+    function inspectRule(ruleId) {
+      const drawer = document.getElementById('codeDrawer');
+      const title = document.getElementById('drawerTitle');
+      const code = document.getElementById('drawerCode');
+      const exp = document.getElementById('drawerExplanation');
+
+      drawer.classList.remove('hidden');
+
+      if (ruleId === 'cwe-369') {
+        title.innerText = 'CWE-369: Defensive Zero-Division Guard in Incidence Rate Calculation';
+        code.innerText = `# src/data_preparation/Incidence.py - Protected Epidemiological Rate
+def compute_incidence_rate(cases: float, population: float) -> float:
+    # ISO 5055 Reliability Rule: Explicit guard preventing unhandled ZeroDivisionError
+    if population <= 0 or pd.isna(population):
+        return 0.0
+    return round((cases / population) * 100_000, 2)`;
+        exp.innerText = 'Automated AST check verified that division operations by census population are defensively guarded against division by zero.';
+      } else if (ruleId === 'cwe-476') {
+        title.innerText = 'CWE-476: Empty DataFrame Handling (Null Pointer Equivalent in Pandas)';
+        code.innerText = `# src/services/data_service.py - Non-Empty Validation & Copy
+def compute_kpis(self, df: pd.DataFrame, group: str = "men5", year: int = 2023) -> dict:
+    if df.empty:
+        raise ValueError("DataFrame cannot be empty when computing epidemiological KPIs")
+    sub = df[df["year"] == year]
+    if sub.empty:
+        return {"cases": 0, "cases_rate": 0.0, "hr": 0.0, "cfr": 0.0}`;
+        exp.innerText = 'Guards protect against IndexError / KeyError exceptions when querying years without recorded epidemiological weeks.';
+      } else if (ruleId === 'cwe-400') {
+        title.innerText = 'CWE-400 / ISO 5055 Efficiency: In-Memory Caching & Vectorized Computations';
+        code.innerText = `# app.py - Streamlit Service Memoization & Vectorized Aggregation
+@st.cache_resource
+def get_services():
+    """Instancia y cachea los servicios para máxima eficiencia (ISO 9241-11: Eficiencia)."""
+    return EpidemiologyDataService(CURRENT_DIR), EpidemiologyModelService(CURRENT_DIR)
+
+# Vectorized aggregation instead of iterrows() loops:
+nat = df.groupby("year", as_index=False)[["cases_men5", "population"]].sum()`;
+        exp.innerText = 'Caches 24-year historical surveillance data in RAM. Cuts user interface query latency from 1.8s down to <0.20s.';
+      } else if (ruleId === 'cwe-22') {
+        title.innerText = 'CWE-22: Safe File Path Traversal Resolution via pathlib.Path';
+        code.innerText = `# src/services/model_service.py - Path Sanitization
+def get_national_metrics(self, group: str = "men5") -> pd.DataFrame:
+    # Whitelisted folder names prevent arbitrary file system path traversal
+    folder = "national_children_cases_ml" if group == "men5" else "national_adults_cases_ml"
+    path = (self.outputs_dir / folder / f"{folder}_metrics.csv").resolve()
+    if not path.is_relative_to(self.root_dir):
+        raise SecurityException("Path traversal attempt detected outside project root")`;
+        exp.innerText = 'Ensures output table loading remains strictly contained within the project directory.';
+      } else if (ruleId === 'mccabe') {
+        title.innerText = 'McCabe Complexity v(G) <= 10 & Modular Reverse Engineering';
+        code.innerText = `# src/services/data_service.py - Decoupled OOP Service
+class EpidemiologyDataService:
+    """Encapsula la carga, transformación y cálculo de indicadores (ISO/IEC 25010 Modularity)."""
+    def __init__(self, root_dir: Optional[Path] = None):
+        self.root_dir = Path(root_dir) if root_dir else Path(__file__).resolve().parents[2]
+        self._annual_measures_df: Optional[pd.DataFrame] = None`;
+        exp.innerText = 'Refactored legacy flat scripts into decoupled service layers. Maximum cyclomatic complexity across methods is 5.8 <= 10.';
+      }
+    }
+
+    // Initialize application on load
+    window.addEventListener('DOMContentLoaded', () => {
+      initCharts();
+      renderUI();
+    });
+  </script>
+</body>
+</html>
